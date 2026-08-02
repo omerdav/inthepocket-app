@@ -1,0 +1,47 @@
+export const SCORING_CATEGORIES = {
+  GREEN: 0,
+  YELLOW: 1,
+  RED: 2,
+  MISS: 3
+} as const;
+
+export type ScoringCategory = typeof SCORING_CATEGORIES[keyof typeof SCORING_CATEGORIES];
+
+export enum DiagnosticRuleId {
+  OK = 0,
+  RUSHING = 1,
+  DRAGGING = 2,
+  GHOST_TOO_LOUD = 3,
+  ACCENT_TOO_SOFT = 4,
+  ZONE_CONFUSION = 5,
+}
+
+export interface ScoringWorkerInitMessage {
+  type: 'init';
+  bufferSize: number;
+}
+
+export interface ScoringWorkerCalculateMessage {
+  type: 'calculate';
+  targetBeats: Float64Array; // Timestamps of target beats
+  targetVelocityMin: Float32Array; // Min allowed velocity per target
+  targetVelocityMax: Float32Array; // Max allowed velocity per target
+  targetZones: Int8Array; // Expected drum zone (MIDI note number) per target
+  hitTimestamps: Float64Array; // Timestamps of user hits
+  hitVelocities: Float32Array; // Velocities of user hits
+  hitZones: Int8Array; // Drum zone (MIDI note number) of user hits
+  numTargets: number;
+  numHits: number;
+}
+
+export interface ScoringWorkerResultMessage {
+  type: 'result';
+  offsets: Float32Array; // Delta offset in ms for each target beat
+  categories: Int8Array; // Category for each target beat
+  dynamicScores: Int8Array; // 1 for PASS, 0 for FAIL
+  diagnosticRuleIds: Uint8Array; // Maps to DiagnosticRuleId enum
+  numResults: number;    // Equals numTargets
+  decouplingScore?: number; // Pearson r score between hand and foot
+}
+
+export type ScoringWorkerMessage = ScoringWorkerInitMessage | ScoringWorkerCalculateMessage;
