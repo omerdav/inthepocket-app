@@ -18,6 +18,7 @@
 import { WebMidi, type Input, type NoteMessageEvent, type ControlChangeMessageEvent } from 'webmidi'
 import type { TimestampCorrelator } from './TimestampCorrelator'
 import { HiHatStateTracker } from './HiHatStateTracker'
+import { nearestBeatDeltaMs } from './metronomeSab'
 
 // ---------------------------------------------------------------------------
 // MIDI Note constants
@@ -444,9 +445,12 @@ export class MidiEngine {
     hit.uiNavigationAllowed = uiNav
 
     if (this._sharedBuffer && this._correlator) {
+      // Fold to the NEAREST beat, not the next one. Differencing against the
+      // next beat alone reports a hit landing just after a beat as almost a
+      // full period early — inverting the feedback precisely when the drummer
+      // is closest to correct.
       const hitAudioTime = this._correlator.mapHitTime(timestamp)
-      const targetBeatTime = Number(Atomics.load(this._sharedBuffer, 0)) / 1000000.0
-      hit.deltaMs = (hitAudioTime - targetBeatTime) * 1000.0
+      hit.deltaMs = nearestBeatDeltaMs(this._sharedBuffer, hitAudioTime)
     } else {
       hit.deltaMs = 0
     }

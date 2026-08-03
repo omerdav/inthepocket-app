@@ -1,0 +1,215 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Spike A — AudioContext activation</title>
+<style>
+  body { background:#000; color:#eee; font:16px/1.5 system-ui, sans-serif; margin:0; padding:24px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p.sub { color:#888; margin:0 0 20px; }
+  table { border-collapse:collapse; width:100%; max-width:900px; margin-bottom:24px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #222; vertical-align:top; }
+  th { color:#888; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
+  .pass { color:#22c55e; font-weight:700; }
+  .fail { color:#ef4444; font-weight:700; }
+  .pend { color:#666; }
+  button { background:#1a1a1a; color:#eee; border:2px solid #444; border-radius:6px;
+           padding:14px 20px; font-size:16px; cursor:pointer; margin:0 8px 8px 0; }
+  button:hover { border-color:#888; }
+  #log { background:#0a0a0a; border:1px solid #222; border-radius:6px; padding:12px;
+         font:13px/1.6 ui-monospace, monospace; white-space:pre-wrap; max-height:320px; overflow:auto; }
+  code { background:#1a1a1a; padding:1px 5px; border-radius:3px; }
+</style>
+
+<h1>Spike A — does a MIDI hit unlock the AudioContext?</h1>
+<p class="sub">
+  Roadmap M4.1. Browsers grant user activation from pointer / keyboard / touch events.
+  <code>MIDIMessageEvent</code> is not in that set, so T3 is expected to fail — this page proves it either way.
+  <strong>Reload between tests</strong>: activation is sticky once granted.
+</p>
+
+<table id="results">
+  <tr><th>#</th><th>Test</th><th>Expected</th><th>Result</th><th>state after resume()</th></tr>
+  <tr data-t="T0"><td>T0</td><td>Baseline: context state on construction, no interaction</td><td>suspended</td><td class="pend">—</td><td class="pend">—</td></tr>
+  <tr data-t="T1"><td>T1</td><td>resume() from a timer, no gesture ever</td><td class="fail">stays suspended</td><td class="pend">—</td><td class="pend">—</td></tr>
+  <tr data-t="T2"><td>T2</td><td>resume() from a real click (control)</td><td class="pass">running</td><td class="pend">—</td><td class="pend">—</td></tr>
+  <tr data-t="T3"><td>T3</td><td>resume() from a MIDI noteon — <strong>needs your kit</strong></td><td>?</td><td class="pend">—</td><td class="pend">—</td></tr>
+  <tr data-t="T4"><td>T4</td><td>Does the MIDI permission grant alone confer activation?</td><td>?</td><td class="pend">—</td><td class="pend">—</td></tr>
+  <tr data-t="ISO"><td>—</td><td>crossOriginIsolated (SharedArrayBuffer available?)</td><td>true</td><td class="pend">—</td><td class="pend">—</td></tr>
+</table>
+
+<button id="btnT1">Run T1 (timer, no gesture)</button>
+<button id="btnT2">Run T2 (this click)</button>
+<button id="btnT3">Arm T3 — then hit a pad</button>
+<button id="btnReset">Reload</button>
+
+<div id="log"></div>
+
+<script type="module">
+const logEl = document.getElementById('log');
+const log = (m) => { logEl.textContent += m + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+
+function setResult(t, ok, state, note) {
+  const row = document.querySelector(`tr[data-t="${t}"]`);
+  if (!row) return;
+  const cells = row.querySelectorAll('td');
+  cells[3].textContent = note ?? (ok ? 'PASS' : 'FAIL');
+  cells[3].className = ok === null ? 'pend' : (ok ? 'pass' : 'fail');
+  if (cells[4]) cells[4].textContent = state ?? '—';
+  if (cells[4]) cells[4].className = '';
+}
+
+// --- environment sanity: is the autoplay policy even enforced here? --------
+// An AudioContext that reaches "running" with no prior gesture means this
+// browser is NOT enforcing the autoplay policy (Electron defaults to
+// autoplayPolicy: 'no-user-gesture-required'; Chrome can be launched with
+// --autoplay-policy=no-user-gesture-required). Every activation result on
+// such a browser is a false positive. Refuse to report them.
+const probe = new AudioContext();
+const policyEnforced = !(probe.state === 'running' &&
+  navigator.userActivation && !navigator.userActivation.hasBeenActive);
+probe.close();
+
+if (!policyEnforced) {
+  const warn = document.createElement('p');
+  warn.style.cssText = 'background:#3b1010;border:2px solid #ef4444;color:#fca5a5;' +
+    'padding:12px 14px;border-radius:6px;max-width:900px;font-weight:600';
+  warn.innerHTML = '⚠️ <strong>This browser does not enforce the autoplay policy.</strong> ' +
+    'An AudioContext reached <code>running</code> with no user gesture. ' +
+    'Activation results (T0–T4) from this environment are meaningless — ' +
+    'run this page in a normal Chrome or Firefox window instead. ' +
+    'The <code>crossOriginIsolated</code> row below is still valid (it is server-side).';
+  document.querySelector('p.sub').after(warn);
+}
+
+// --- isolation check -------------------------------------------------------
+setResult('ISO', self.crossOriginIsolated === true, '', String(self.crossOriginIsolated));
+log(`autoplay policy enforced = ${policyEnforced}${policyEnforced ? '' : '  <-- ACTIVATION RESULTS INVALID HERE'}`);
+log(`userAgent = ${navigator.userAgent}`);
+log(`crossOriginIsolated = ${self.crossOriginIsolated}`);
+log(`SharedArrayBuffer   = ${typeof SharedArrayBuffer}`);
+log(`userActivation      = ${navigator.userActivation ? JSON.stringify({
+  isActive: navigator.userActivation.isActive,
+  hasBeenActive: navigator.userActivation.hasBeenActive
+}) : 'unsupported'}`);
+log('');
+
+// --- T0: construct, observe -----------------------------------------------
+const ctx = new AudioContext();
+log(`T0  state on construction: ${ctx.state}`);
+setResult('T0', ctx.state === 'suspended', ctx.state, ctx.state);
+
+// A silent oscillator so "running" means something audible could happen.
+function beep() {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.value = 880; g.gain.value = 0.15;
+  o.connect(g).connect(ctx.destination);
+  o.start(); o.stop(ctx.currentTime + 0.12);
+}
+
+async function tryResume(tag, { activationBefore } = {}) {
+  const ua = navigator.userActivation
+    ? `isActive=${navigator.userActivation.isActive} hasBeenActive=${navigator.userActivation.hasBeenActive}`
+    : 'n/a';
+  log(`${tag}  before: state=${ctx.state}  userActivation{${ua}}${activationBefore ? '  ' + activationBefore : ''}`);
+  try {
+    await ctx.resume();
+  } catch (err) {
+    log(`${tag}  resume() threw: ${err}`);
+  }
+  // resume() resolves even when blocked; the state is the ground truth.
+  await new Promise(r => setTimeout(r, 60));
+  log(`${tag}  after:  state=${ctx.state}`);
+  const running = ctx.state === 'running';
+  if (running) beep();
+  return running;
+}
+
+// --- T1: timer, never any gesture -----------------------------------------
+document.getElementById('btnT1').addEventListener('click', () => {
+  log('\nT1  scheduling resume() in 1200ms from a timer.');
+  log('T1  NOTE: clicking this button already granted activation, so this run is');
+  log('T1  contaminated. For a clean T1, reload and let it auto-run (below).');
+  setTimeout(async () => {
+    const ok = await tryResume('T1');
+    setResult('T1', !ok, ctx.state, ok ? 'resumed (contaminated)' : 'stayed suspended');
+  }, 1200);
+});
+
+// Clean T1: auto-run on load with no interaction at all.
+setTimeout(async () => {
+  if (navigator.userActivation && navigator.userActivation.hasBeenActive) {
+    log('T1* skipped — page already had a user gesture.');
+    return;
+  }
+  log('\nT1* auto-run: resume() from timer, zero interaction so far.');
+  const ok = await tryResume('T1*');
+  setResult('T1', !ok, ctx.state, ok ? 'RESUMED — activation not required!' : 'stayed suspended (as expected)');
+}, 800);
+
+// --- T2: real click --------------------------------------------------------
+document.getElementById('btnT2').addEventListener('click', async () => {
+  log('\nT2  resume() directly inside a click handler.');
+  const ok = await tryResume('T2');
+  setResult('T2', ok, ctx.state, ok ? 'running' : 'FAILED — unexpected');
+});
+
+// --- T3 / T4: MIDI ---------------------------------------------------------
+document.getElementById('btnT3').addEventListener('click', async () => {
+  log('\nT3  requesting MIDI access...');
+  log('T3  IMPORTANT: this button click granted activation. Reload, then use');
+  log('T3  the auto-arm below for an uncontaminated result.');
+  await armMidi('T3');
+});
+
+async function armMidi(tag) {
+  if (!navigator.requestMIDIAccess) {
+    log(`${tag}  navigator.requestMIDIAccess is unavailable in this browser.`);
+    setResult('T3', null, '', 'Web MIDI unsupported');
+    setResult('T4', null, '', 'Web MIDI unsupported');
+    return;
+  }
+  let access;
+  try {
+    access = await navigator.requestMIDIAccess({ sysex: false });
+  } catch (err) {
+    log(`${tag}  requestMIDIAccess rejected: ${err}`);
+    setResult('T3', null, '', 'permission denied');
+    return;
+  }
+
+  const uaAfterGrant = navigator.userActivation
+    ? `isActive=${navigator.userActivation.isActive} hasBeenActive=${navigator.userActivation.hasBeenActive}`
+    : 'n/a';
+  log(`${tag}  MIDI granted. userActivation after grant: {${uaAfterGrant}}`);
+  setResult('T4', null, '', uaAfterGrant);
+
+  const inputs = [...access.inputs.values()];
+  log(`${tag}  inputs: ${inputs.length ? inputs.map(i => i.name).join(', ') : 'NONE — plug in your kit'}`);
+  if (!inputs.length) {
+    setResult('T3', null, '', 'no MIDI device connected');
+    return;
+  }
+
+  let fired = false;
+  for (const input of inputs) {
+    input.onmidimessage = async (e) => {
+      const [status, , velocity] = e.data;
+      if ((status & 0xf0) !== 0x90 || velocity === 0) return; // note-on only
+      if (fired) return;
+      fired = true;
+      log(`\n${tag}  >>> MIDI noteon received. Calling resume() from this handler.`);
+      const ok = await tryResume(tag, { activationBefore: '(inside MIDI handler)' });
+      setResult('T3', ok, ctx.state,
+        ok ? 'RESUMED from MIDI' : 'stayed suspended — MIDI does NOT grant activation');
+      log(`${tag}  VERDICT: ${ok
+        ? 'a MIDI hit CAN unlock audio here.'
+        : 'a MIDI hit CANNOT unlock audio. First-run needs a real gesture.'}`);
+    };
+  }
+  log(`${tag}  armed — hit a pad now.`);
+}
+
+// Auto-arm MIDI on load so T3 can run without any click contaminating it.
+armMidi('T3*');
+
+document.getElementById('btnReset').addEventListener('click', () => location.reload());
+</script>

@@ -5,6 +5,7 @@ export class TimestampCorrelator {
   private _a = 1
   private _b = 0
   private _audioContext: AudioContext
+  private _intervalId: ReturnType<typeof setInterval> | null = null
 
   constructor(audioContext: AudioContext) {
     this._audioContext = audioContext
@@ -12,7 +13,15 @@ export class TimestampCorrelator {
       throw new Error("Fatal: getOutputTimestamp() is unsupported in the current browser context.")
     }
     this.recalibrate()
-    setInterval(() => this._sampleTimestamp(), 1000)
+    this._intervalId = setInterval(() => this._sampleTimestamp(), 1000)
+  }
+
+  /** Stop resampling and release the interval. Safe to call more than once. */
+  public dispose(): void {
+    if (this._intervalId !== null) {
+      clearInterval(this._intervalId)
+      this._intervalId = null
+    }
   }
 
   public recalibrate(): void {
