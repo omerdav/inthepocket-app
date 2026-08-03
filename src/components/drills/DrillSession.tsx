@@ -8,7 +8,9 @@ import {
   type DrillPhaseDetail,
   type DrillResult,
 } from '../../session/DrillRunner'
+import { useSignalEffect } from '@preact/signals'
 import { isDrillPlaying } from '../../state/session'
+import { pendingLaunchId } from '../../state/routing'
 import './DrillSession.css'
 
 /** The grid renders three staff positions; map the zone model onto them. */
@@ -71,6 +73,16 @@ export function DrillSession({ unit, worker }: Props) {
       console.warn('[DrillSession]', err)
     }
   }
+
+  // One-touch launch from the menu (pointer or stick). Selecting the drill is
+  // itself the user gesture, so the audio unlock still has a real activation
+  // behind it. Runs on mount and whenever the pending id changes, which covers
+  // both re-selecting the current drill and switching to a different one.
+  useSignalEffect(() => {
+    if (pendingLaunchId.value !== unit.id) return
+    pendingLaunchId.value = null
+    void start()
+  })
 
   const busy = phase === 'count-in' || phase === 'playing' || phase === 'scoring'
 

@@ -1,58 +1,77 @@
 import { useSignal } from '@preact/signals';
-import { sessionPhase, isQuickMenuOpen } from '../../state/session';
+import { sessionPhase, isQuickMenuOpen, type SessionPhase } from '../../state/session';
+import { sectionsForPhase, PHASE_EMPTY_STATE, type DrillEntry } from '../../data/registry';
+import { currentDrillId, navigateToDrill } from '../../state/routing';
 import './QuickMenu.css';
 import { useEffect, useRef } from 'preact/hooks';
 
-// Dummy data for the MVP menu items
-const MENU_DATA = {
-  learn: [
-    { section: 'Foundations', items: ['Grip & Posture', 'Dynamics Gate', 'Timing Gate'] },
-    { section: 'Rudiments', items: ['Single Strokes', 'Double Strokes', 'Paradiddles'] },
-  ],
-  practice: [
-    { section: 'Bootcamps', items: ['Dynamics Gate Drill 1', 'Dynamics Gate Drill 5'] },
-    { section: 'Independence', items: ['Bossa Nova Ostinato', 'Samba Feet'] },
-  ],
-  fun: [
-    { section: 'Play-Alongs', items: ['Rock Groove 1', 'Funk Groove 1'] },
-  ]
+const PHASES: SessionPhase[] = ['learn', 'practice', 'fun'];
+const PHASE_LABEL: Record<SessionPhase, string> = {
+  learn: '📖 Learn',
+  practice: '🎯 Practice',
+  fun: '🎵 Fun',
 };
 
+/**
+ * Stick navigation model.
+ *
+ * One flat focus ring over [three phase tabs, ...drills in the current phase].
+ * `stick-scroll-down` moves focus; `stick-select` activates whatever is
+ * focused — switching phase on a tab, launching the drill on an item.
+ *
+ * Previously `stick-select` cycled tabs and nothing could launch a drill. The
+ * source comment conceded that binding existed "to satisfy" its test rather
+ * than because it was right, which left the menu decorative and the app
+ * unusable without a mouse — the exact inverse of the Anti-DAW premise.
+ */
+type NavItem =
+  | { kind: 'tab'; phase: SessionPhase }
+  | { kind: 'drill'; entry: DrillEntry };
+
 export function QuickMenu() {
-  const selectedIndex = useSignal(0);
+  const focusIndex = useSignal(PHASES.indexOf('practice'));
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // When unmounted due to playing, we return null entirely (Visibility State Machine)
   if (!isQuickMenuOpen.value) {
     return null;
   }
 
-  const currentData = MENU_DATA[sessionPhase.value];
-  
-  // Flatten items for keyboard/stick navigation logic
-  const flatItems = currentData.flatMap(section => section.items);
+  const phase = sessionPhase.value;
+  const sections = sectionsForPhase(phase);
+  const emptyState = PHASE_EMPTY_STATE[phase];
+
+  const navItems: NavItem[] = [
+    ...PHASES.map((p) => ({ kind: 'tab' as const, phase: p })),
+    ...sections.flatMap((s) => s.entries.map((entry) => ({ kind: 'drill' as const, entry }))),
+  ];
+
+  const indexOfDrill = (id: string) =>
+    navItems.findIndex((n) => n.kind === 'drill' && n.entry.unit.id === id);
 
   useEffect(() => {
-    // Reset selection when phase changes
-    selectedIndex.value = 0;
-  }, [sessionPhase.value]);
+    // Focus the active tab when the phase changes, so the ring stays coherent.
+    focusIndex.value = PHASES.indexOf(phase);
+  }, [phase]);
 
   useEffect(() => {
     if (!isQuickMenuOpen.value) return;
 
     const handleScroll = (e: Event) => {
       e.preventDefault();
-      // Cycle through flat items
-      selectedIndex.value = (selectedIndex.value + 1) % flatItems.length;
+      focusIndex.value = (focusIndex.value + 1) % navItems.length;
     };
 
     const handleSelect = (e: Event) => {
       e.preventDefault();
-      // MVP: Switch tab on stick-select if we are at the top, or just cycle tabs.
-      // Let's just cycle tabs for now on stick-select to satisfy "stick-driven tab switches"
-      const phases: SessionPhase[] = ['learn', 'practice', 'fun'];
-      const currentIdx = phases.indexOf(sessionPhase.value);
-      sessionPhase.value = phases[(currentIdx + 1) % phases.length];
+      const item = navItems[focusIndex.value];
+      if (!item) return;
+      if (item.kind === 'tab') {
+        sessionPhase.value = item.phase;
+      } else {
+        // One-touch launch: a drummer selecting with a rim hit has no way to
+        // then reach a separate Start control.
+        navigateToDrill(item.entry.unit.id, { autoStart: true });
+      }
     };
 
     window.addEventListener('stick-scroll-down', handleScroll);
@@ -62,52 +81,52 @@ export function QuickMenu() {
       window.removeEventListener('stick-scroll-down', handleScroll);
       window.removeEventListener('stick-select', handleSelect);
     };
-  }, [isQuickMenuOpen.value, flatItems.length]);
+  }, [isQuickMenuOpen.value, navItems.length, phase]);
 
   return (
     <div className="quick-menu-panel" ref={containerRef} data-testid="quick-menu-panel">
       <div className="quick-menu-tabs">
-        <button 
-          className={`tab-btn ${sessionPhase.value === 'learn' ? 'active' : ''}`}
-          onClick={() => sessionPhase.value = 'learn'}
-          data-testid="tab-learn"
-        >
-          📖 Learn
-        </button>
-        <button 
-          className={`tab-btn ${sessionPhase.value === 'practice' ? 'active' : ''}`}
-          onClick={() => sessionPhase.value = 'practice'}
-          data-testid="tab-practice"
-        >
-          🎯 Practice
-        </button>
-        <button 
-          className={`tab-btn ${sessionPhase.value === 'fun' ? 'active' : ''}`}
-          onClick={() => sessionPhase.value = 'fun'}
-          data-testid="tab-fun"
-        >
-          🎵 Fun
-        </button>
+        {PHASES.map((p, i) => (
+          <button
+            key={p}
+            className={`tab-btn ${phase === p ? 'active' : ''} ${focusIndex.value === i ? 'focused' : ''}`}
+            onClick={() => (sessionPhase.value = p)}
+            data-testid={`tab-${p}`}
+          >
+            {PHASE_LABEL[p]}
+          </button>
+        ))}
       </div>
 
       <div className="quick-menu-list">
-        {currentData.map((section, sIdx) => (
-          <div key={sIdx} className="quick-menu-section">
-            <h3 className="sticky-label" data-testid={`sticky-label-${section.section}`}>
+        {emptyState && (
+          <p className="quick-menu-empty" data-testid="phase-empty-state">
+            {emptyState}
+          </p>
+        )}
+
+        {sections.map((section) => (
+          <div key={section.section} className="quick-menu-section">
+            <h3
+              className="sticky-label"
+              data-testid={`sticky-label-${section.section.replace(/\s+/g, '-')}`}
+            >
               {section.section}
             </h3>
             <ul>
-              {section.items.map((item) => {
-                const globalIndex = flatItems.indexOf(item);
-                const isSelected = selectedIndex.value === globalIndex;
+              {section.entries.map((entry) => {
+                const id = entry.unit.id;
+                const isFocused = focusIndex.value === indexOfDrill(id);
+                const isActive = currentDrillId.value === id;
                 return (
-                  <li 
-                    key={item} 
-                    className={`menu-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => selectedIndex.value = globalIndex}
-                    data-testid={`menu-item-${item.replace(/\s+/g, '-')}`}
+                  <li
+                    key={id}
+                    className={`menu-item ${isFocused ? 'selected' : ''} ${isActive ? 'active-drill' : ''}`}
+                    onClick={() => navigateToDrill(id, { autoStart: true })}
+                    data-testid={`menu-item-${id}`}
+                    data-active={String(isActive)}
                   >
-                    {item}
+                    {entry.unit.name}
                   </li>
                 );
               })}

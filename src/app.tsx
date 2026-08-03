@@ -9,7 +9,8 @@ import type { ScoringWorkerResultMessage } from './workers/scoring.types'
 import { effect } from '@preact/signals'
 import { RhythmGrid, type DrillSequence } from './components/drills/RhythmGrid'
 import { DrillSession } from './components/drills/DrillSession'
-import { DynamicsGateDrill1 } from './data/bootcamps/dynamics-gate'
+import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
+import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
 import { HiHatCalibration, isCalibrationOpen, hasCompletedHiHatCalibration } from './components/layout/HiHatCalibration'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
@@ -191,9 +192,12 @@ export function App() {
     </header>
   );
 
-  // The product screen: a real drill, played against the real click.
+  // The product screen: a real drill, resolved from the URL, played against
+  // the real click. `key` forces a clean remount when the drill changes so no
+  // result from the previous drill leaks into the new one.
+  const activeDrill = getDrill(currentDrillId.value) ?? getDrill(DEFAULT_DRILL_ID)!;
   const mainVisual = scoringWorker
-    ? <DrillSession unit={DynamicsGateDrill1} worker={scoringWorker} />
+    ? <DrillSession key={activeDrill.id} unit={activeDrill} worker={scoringWorker} />
     : <section class="visualizer-card"><h2>Starting engine…</h2></section>;
 
   // Debug harness — emoji pads, event feed, canvas probe. Useful during engine
