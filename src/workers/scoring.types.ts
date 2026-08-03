@@ -32,7 +32,19 @@ export interface ScoringWorkerCalculateMessage {
   hitZones: Int8Array; // Drum zone (MIDI note number) of user hits
   numTargets: number;
   numHits: number;
+  /**
+   * GREEN threshold in ms, from the drill's PassCriteria. YELLOW extends to
+   * 1.67x this. Defaults to 30 (and therefore 50 for YELLOW), preserving the
+   * previous hardcoded behaviour.
+   *
+   * Without this the adaptive tolerance bands could not be applied: every
+   * drill was graded at 30/50ms regardless of what its criteria said.
+   */
+  timingWindowMs?: number;
 }
+
+/** YELLOW band as a multiple of the GREEN window. */
+export const YELLOW_WINDOW_RATIO = 5 / 3;
 
 export interface ScoringWorkerResultMessage {
   type: 'result';

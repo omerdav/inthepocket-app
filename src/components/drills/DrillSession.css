@@ -1,0 +1,165 @@
+/* Layout A — the Performance Screen.
+   Three horizontal zones, high contrast, legible at 1.5-2.5m from the throne.
+   Nothing here is smaller than 16px, per the UX spec. */
+
+.drill-session {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 24px;
+  width: 100%;
+  min-height: 70vh;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #000;
+  position: relative;
+}
+
+/* --- Zone 1: context ---------------------------------------------------- */
+.drill-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid #1e1e1e;
+  padding-bottom: 12px;
+}
+
+.drill-name {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #f2f2f2;
+}
+
+.drill-bpm {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.bpm-value {
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  color: hsl(140, 100%, 50%);
+  font-variant-numeric: tabular-nums;
+}
+
+.bpm-label {
+  font-size: 18px;
+  color: #777;
+  letter-spacing: 0.08em;
+}
+
+/* --- Zone 2: the pulse -------------------------------------------------- */
+.drill-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.drill-start {
+  min-width: 400px;
+  padding: 32px 48px;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #000;
+  background: hsl(140, 100%, 50%);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.drill-start:hover {
+  background: hsl(140, 100%, 60%);
+}
+
+.drill-start.again {
+  margin-top: 20px;
+  min-width: 260px;
+  padding: 20px 32px;
+  font-size: 26px;
+}
+
+.count-in {
+  font-size: 180px;
+  font-weight: 800;
+  line-height: 1;
+  color: hsl(180, 100%, 50%);
+  font-variant-numeric: tabular-nums;
+  animation: countpulse 0.18s ease-out;
+}
+
+@keyframes countpulse {
+  from { transform: scale(1.25); opacity: 0.7; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.playing-pulse span {
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: hsl(140, 100%, 50%);
+}
+
+.scoring {
+  font-size: 32px;
+  color: #999;
+}
+
+/* --- Result ------------------------------------------------------------- */
+.drill-result {
+  max-width: 780px;
+}
+
+.result-verdict {
+  font-size: 56px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.drill-result.passed .result-verdict { color: hsl(140, 100%, 50%); }
+.drill-result.failed .result-verdict { color: hsl(35, 100%, 50%); }
+
+/* The diagnosis is the product. It gets the biggest readable type on screen,
+   not a percentage. */
+.result-headline {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #f2f2f2;
+  margin: 0 0 12px;
+}
+
+.result-detail {
+  font-size: 20px;
+  color: #9a9a9a;
+  margin: 0 0 16px;
+}
+
+.result-stats {
+  font-size: 18px;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-locked {
+  font-size: 20px;
+  color: hsl(35, 100%, 60%);
+  max-width: 520px;
+}
+
+/* --- Zone 3: notation --------------------------------------------------- */
+.drill-bottom {
+  border-top: 1px solid #1e1e1e;
+  padding-top: 16px;
+  min-height: 140px;
+}
+
+.drill-busy-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

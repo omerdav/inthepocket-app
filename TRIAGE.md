@@ -1,10 +1,26 @@
 # Triage — what is real and what is scaffolding
 
-> **As of 2026-08-02**, the baseline commit. Full evidence and reasoning:
-> `../inthepocket-planning/Verified_Status_Audit.md`.
+> **Updated 2026-08-03** after milestones M4 (audio engine) and M5-slice
+> (playable drill). Full evidence: `../inthepocket-planning/Verified_Status_Audit.md`.
 > Next work: `../inthepocket-planning/Execution_Queue.md`.
 
 This repository had no version control until 2026-08-02. The baseline commit captures ten sprints of prior work unmodified. This file exists so nobody has to rediscover which parts run.
+
+## Resolved since the baseline
+
+| Was | Now |
+|---|---|
+| No `AudioContext` anywhere; `MetronomeProcessor` silent and never loaded | **Real metronome.** Sample-accurate click, tempo-parameterised, worklet loaded via a Vite build entry. Measured: 0.02ms worst-case drift over 4s. |
+| `TimestampCorrelator` never constructed; SAB bridge unreachable | Constructed and wired; `setSyncData` called; hit offsets derive from the audio clock. |
+| `deltaMs` differenced against the *next* beat | Folds to the *nearest* beat — a hit 5ms late reads +5ms, not ~495ms early. |
+| **`ScoringWorker` never loaded** (type-only names in a value import broke ES module linking under `verbatimModuleSyntax`) | Fixed with `import type`. The worker had been dead since it was written — it was instantiated, posted to, and answered nothing. |
+| Bootcamp drills authored but unrenderable | `DrillSession` plays `DynamicsGateDrill1` end to end and reports a specific diagnosis. |
+| `generateSequence` eighth-notes-only | Subdivision (quarter/eighth/triplet/sixteenth) + explicit accent/ghost mask. |
+| Worker hardcoded 30/50ms bands, ignoring `PassCriteria` | Grades against each drill's `timingWindowMs`. |
+| `app.tsx` demo harness on the product path | Product path is the drill screen. Harness moved behind `?dev=1`. |
+| 2 tests asserting `expect(true).toBe(true)`; 1 red test | Deleted. 8 engine tests on measured audio + 5 end-to-end drill tests. |
+
+**Suites:** Vitest 61/61, Playwright 30/30. Both verified by running them.
 
 ---
 

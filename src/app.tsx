@@ -8,6 +8,8 @@ import { ThroneView } from './components/layout/ThroneView'
 import type { ScoringWorkerResultMessage } from './workers/scoring.types'
 import { effect } from '@preact/signals'
 import { RhythmGrid, type DrillSequence } from './components/drills/RhythmGrid'
+import { DrillSession } from './components/drills/DrillSession'
+import { DynamicsGateDrill1 } from './data/bootcamps/dynamics-gate'
 import { QuickMenu } from './components/layout/QuickMenu'
 import { HiHatCalibration, isCalibrationOpen, hasCompletedHiHatCalibration } from './components/layout/HiHatCalibration'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
@@ -42,10 +44,19 @@ const PAD_MAP = [
   { note: MIDI_NOTE.RIDE, name: 'Ride', key: 'J', icon: '🔔', color: '#0099ff' }
 ]
 
+const IS_DEV_VIEW =
+  typeof location !== 'undefined' && new URLSearchParams(location.search).has('dev')
+
+const dummySequence: DrillSequence = [
+  { targetTimeMs: 1000, drumType: 'kick', sticking: 'R', isAccent: true },
+  { targetTimeMs: 1500, drumType: 'snare', sticking: 'L', isAccent: false }
+]
+
 export function App() {
   const [midiConnected, setMidiConnected] = useState(false)
   const [recentHits, setRecentHits] = useState<Array<{ note: number; velocity: number; time: string; uiAllowed: boolean }>>([])
   const [activePad, setActivePad] = useState<number | null>(null)
+  const [scoringWorker, setScoringWorker] = useState<Worker | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const grooveCircleRef = useRef<GrooveCircle | null>(null)
 
@@ -82,6 +93,7 @@ export function App() {
       }
     };
     scoringWorkerRef.current = worker;
+    setScoringWorker(worker);
 
     // Initialize MidiEngine
     midiEngine.init().then(() => {
@@ -179,17 +191,20 @@ export function App() {
     </header>
   );
 
-  const dummySequence: DrillSequence = [
-    { targetTimeMs: 1000, drumType: 'kick', sticking: 'R', isAccent: true },
-    { targetTimeMs: 1500, drumType: 'snare', sticking: 'L', isAccent: false }
-  ];
+  // The product screen: a real drill, played against the real click.
+  const mainVisual = scoringWorker
+    ? <DrillSession unit={DynamicsGateDrill1} worker={scoringWorker} />
+    : <section class="visualizer-card"><h2>Starting engine…</h2></section>;
 
-  const mainVisual = (
+  // Debug harness — emoji pads, event feed, canvas probe. Useful during engine
+  // work, but the inverse of the Anti-DAW premise, so it is off the product
+  // path and reachable only at ?dev=1.
+  const devVisual = (
     <section class="visualizer-card">
-      <h2>Groove Engine</h2>
+      <h2>Groove Engine (dev)</h2>
       <div class="canvas-wrapper" ref={canvasRef}></div>
       <p class="canvas-subtext">Real-time Sub-millisecond Timing Visualizer</p>
-      
+
       <div style={{ marginTop: '20px' }}>
         <RhythmGrid sequence={dummySequence} />
       </div>
@@ -287,16 +302,11 @@ export function App() {
 
       {!isE2E && <HiHatCalibration />}
       
-      <ThroneView 
+      <ThroneView
         header={header}
-        grooveCircle={mainVisual}
-        panels={
-          <>
-            {sidePanel}
-            <QuickMenu />
-          </>
-        }
-        footer={footer}
+        grooveCircle={IS_DEV_VIEW ? devVisual : mainVisual}
+        panels={IS_DEV_VIEW ? (<>{sidePanel}<QuickMenu /></>) : <QuickMenu />}
+        footer={IS_DEV_VIEW ? footer : undefined}
       />
       <SettingsMenu />
     </>

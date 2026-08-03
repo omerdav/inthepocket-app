@@ -1,4 +1,5 @@
-import { ScoringWorkerMessage, ScoringWorkerResultMessage, SCORING_CATEGORIES } from './scoring.types';
+import type { ScoringWorkerMessage, ScoringWorkerResultMessage } from './scoring.types';
+import { SCORING_CATEGORIES, YELLOW_WINDOW_RATIO } from './scoring.types';
 import { DiagnosticEngine } from './DiagnosticEngine';
 import { calculateDecouplingScore } from './DecouplingMath';
 
@@ -24,6 +25,9 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
       hitTimestamps, hitVelocities, hitZones, 
       numTargets, numHits 
     } = msg;
+
+    const greenWindow = msg.timingWindowMs ?? 30;
+    const yellowWindow = greenWindow * YELLOW_WINDOW_RATIO;
 
     // Reset usedHits for this run
     for (let i = 0; i < numHits; i++) {
@@ -66,11 +70,11 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
         const hitV = hitVelocities[closestHitIndex];
         const hitZ = hitZones[closestHitIndex];
 
-        // Timing categorization
+        // Timing categorization against this drill's tolerance band.
         const absDelta = Math.abs(minDelta);
-        if (absDelta <= 30) {
+        if (absDelta <= greenWindow) {
           categories[j] = SCORING_CATEGORIES.GREEN;
-        } else if (absDelta <= 50) {
+        } else if (absDelta <= yellowWindow) {
           categories[j] = SCORING_CATEGORIES.YELLOW;
         } else {
           categories[j] = SCORING_CATEGORIES.RED;

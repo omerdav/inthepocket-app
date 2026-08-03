@@ -7,7 +7,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G1 - Blind Mode E2E', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?dev=1');
     
     // Setup blind mode threshold = 4
     await page.evaluate(() => {
@@ -43,7 +43,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G2 - Visual Pixel Test', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?dev=1');
     
     await page.evaluate(async () => {
       (window as any).__E2E_SIMULATE_HIT__('perfect');
@@ -55,7 +55,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G3 - Tuner Pulse Color', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?dev=1');
 
     let earlyColor = await page.evaluate(() => {
       (window as any).__E2E_SIMULATE_HIT__('early', 1000);
@@ -73,7 +73,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G4 - Arrow Indicator', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?dev=1');
     
     let perfectColor = await page.evaluate(() => {
       if ((window as any).setHitVisualMode) {

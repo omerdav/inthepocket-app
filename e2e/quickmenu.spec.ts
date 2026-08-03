@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('QuickMenu UI & Navigation', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:5173');
+    await page.goto('/?dev=1');
   });
 
   test('Visibility State: QuickMenu is unmounted during active drill playback', async ({ page }) => {

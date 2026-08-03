@@ -23,39 +23,87 @@ export const VELOCITY_RANGES = {
   NORMAL: { min: 40, max: 85 }
 };
 
+/** Notes per beat for each supported subdivision. */
+export const SUBDIVISION = {
+  quarter: 1,
+  eighth: 2,
+  triplet: 3,
+  sixteenth: 4,
+} as const;
+
+export type Subdivision = keyof typeof SUBDIVISION;
+
+export interface SequenceOptions {
+  /** Rhythmic grid. Defaults to eighth notes. */
+  subdivision?: Subdivision;
+  /** Beats per bar. Defaults to 4. */
+  beatsPerBar?: number;
+  /** Drum zone for all generated notes. Defaults to 'snare-head'. */
+  drumType?: DrumType;
+  /**
+   * Which positions are accented, as a mask cycled over the pattern.
+   * `true` = accent, `false` = normal, `'ghost'` = ghost-note band.
+   * Defaults to accenting the first note of each bar.
+   */
+  accentMask?: (boolean | 'ghost')[];
+}
+
 /**
- * Mathematically generates a `DrillNote[]` array from a BPM + sticking pattern + bar count.
+ * Generate a `DrillNote[]` from a BPM, sticking pattern and bar count.
+ *
+ * Previously hardcoded to eighth notes with an accent on beat 1, which could
+ * not express sixteenth-note doubles, triplet feels, or ghost-note placement —
+ * i.e. most of the curriculum past the first drill.
+ *
  * @param bpm Beats per minute
- * @param pattern Array of sticking ('R' or 'L') for eighth notes
- * @param bars Number of bars (assuming 4/4 time signature)
- * @param drumType The drum zone to assign all generated notes to (default: 'snare-head')
- * @returns Array of DrillNotes
+ * @param pattern Sticking per grid position; `''` is a rest
+ * @param bars Number of bars
  */
 export function generateSequence(
   bpm: number,
   pattern: ('R' | 'L' | '')[],
   bars: number,
-  drumType: DrumType = 'snare-head'
+  drumTypeOrOptions: DrumType | SequenceOptions = 'snare-head'
 ): DrillNote[] {
+  const opts: SequenceOptions =
+    typeof drumTypeOrOptions === 'string' ? { drumType: drumTypeOrOptions } : drumTypeOrOptions;
+
+  const {
+    subdivision = 'eighth',
+    beatsPerBar = 4,
+    drumType = 'snare-head',
+    accentMask,
+  } = opts;
+
+  const notesPerBeat = SUBDIVISION[subdivision];
+  const notesPerBar = beatsPerBar * notesPerBeat;
+  const totalNotes = bars * notesPerBar;
+  const msPerNote = 60000 / bpm / notesPerBeat;
+
   const sequence: DrillNote[] = [];
-  const beatsPerBar = 4;
-  const notesPerBeat = 2; // Assuming 8th notes
-  const totalNotes = bars * beatsPerBar * notesPerBeat;
-  const msPerBeat = 60000 / bpm;
-  const msPerNote = msPerBeat / notesPerBeat; // 8th note duration in ms
-  
+
   for (let i = 0; i < totalNotes; i++) {
     const sticking = pattern[i % pattern.length];
-    if (sticking !== '') { // allow empty strings for rests
-      const isFirstBeat = (i % (beatsPerBar * notesPerBeat)) === 0;
-      sequence.push({
-        targetTimeMs: i * msPerNote,
-        drumType,
-        sticking,
-        isAccent: isFirstBeat,
-        velocityRange: isFirstBeat ? VELOCITY_RANGES.ACCENT : VELOCITY_RANGES.NORMAL
-      });
-    }
+    if (sticking === '') continue; // rest
+
+    const accent = accentMask
+      ? accentMask[i % accentMask.length]
+      : i % notesPerBar === 0;
+
+    const velocityRange =
+      accent === 'ghost'
+        ? VELOCITY_RANGES.GHOST
+        : accent
+          ? VELOCITY_RANGES.ACCENT
+          : VELOCITY_RANGES.NORMAL;
+
+    sequence.push({
+      targetTimeMs: i * msPerNote,
+      drumType,
+      sticking,
+      isAccent: accent === true,
+      velocityRange,
+    });
   }
 
   return sequence;

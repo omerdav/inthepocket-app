@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('RhythmGrid Component', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?dev=1');
   });
 
   test('G5 - Playhead Alignment', async ({ page }) => {

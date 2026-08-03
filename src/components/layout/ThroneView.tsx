@@ -4,7 +4,7 @@ interface ThroneViewProps {
   header: ComponentChildren;
   grooveCircle: ComponentChildren;
   panels: ComponentChildren;
-  footer: ComponentChildren;
+  footer?: ComponentChildren;
 }
 
 export function ThroneView({ header, grooveCircle, panels, footer }: ThroneViewProps) {
