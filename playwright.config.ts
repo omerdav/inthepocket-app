@@ -18,9 +18,26 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
   },
+  /**
+   * Split into two projects so a break in one team's specs cannot block the
+   * other's. Playwright aborts *all* collection on a single module-load error,
+   * so an undefined reference in a simulation spec previously took the entire
+   * suite to "0 tests in 0 files" — leaving product work with no E2E safety
+   * net at all, and silently.
+   *
+   *   npm run test:e2e  → product specs   (what task verification requires)
+   *   npm run test:sim  → simulation suite
+   */
   projects: [
     {
-      name: 'chromium',
+      name: 'product',
+      testDir: './e2e',
+      testIgnore: '**/simulation/**',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'simulation',
+      testDir: './e2e/simulation',
       use: { ...devices['Desktop Chrome'] },
     },
   ],

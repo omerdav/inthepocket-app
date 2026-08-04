@@ -1,5 +1,6 @@
 import type { ScoringWorkerMessage, ScoringWorkerResultMessage } from './scoring.types';
-import { SCORING_CATEGORIES, YELLOW_WINDOW_RATIO } from './scoring.types';
+import { SCORING_CATEGORIES } from './scoring.types';
+import { categoriseTiming, DEFAULT_TIMING_WINDOW_MS } from './timingBands';
 import { DiagnosticEngine } from './DiagnosticEngine';
 import { calculateDecouplingScore } from './DecouplingMath';
 
@@ -26,8 +27,7 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
       numTargets, numHits 
     } = msg;
 
-    const greenWindow = msg.timingWindowMs ?? 30;
-    const yellowWindow = greenWindow * YELLOW_WINDOW_RATIO;
+    const greenWindow = msg.timingWindowMs ?? DEFAULT_TIMING_WINDOW_MS;
 
     // Reset usedHits for this run
     for (let i = 0; i < numHits; i++) {
@@ -70,15 +70,10 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
         const hitV = hitVelocities[closestHitIndex];
         const hitZ = hitZones[closestHitIndex];
 
-        // Timing categorization against this drill's tolerance band.
-        const absDelta = Math.abs(minDelta);
-        if (absDelta <= greenWindow) {
-          categories[j] = SCORING_CATEGORIES.GREEN;
-        } else if (absDelta <= yellowWindow) {
-          categories[j] = SCORING_CATEGORIES.YELLOW;
-        } else {
-          categories[j] = SCORING_CATEGORIES.RED;
-        }
+        // Timing categorization against this drill's tolerance band. Shared
+        // with the live Groove Circle so the visual and the grade cannot
+        // disagree about what counts as green.
+        categories[j] = categoriseTiming(minDelta, greenWindow);
 
         // Dynamic scoring
         const passDynamics = hitV >= targetMinV && hitV <= targetMaxV;

@@ -65,13 +65,26 @@ Every claim of success must be backed by **pasted terminal output** from a comma
 npm run build
 ```
 ```bash
-npx vitest run
+npm test
 ```
 ```bash
-npx playwright test
+npm run test:e2e
 ```
 
-All three must be green. Paste the **tail of each** into your report. If any was already failing before you started, say so explicitly and quote the pre-existing failure.
+All three must be green. Paste the **tail of each** into your report.
+
+**Use `npm run test:e2e`, not `npx playwright test`.** The E2E suite is split
+into two projects: `product` (yours) and `simulation` (another team's).
+Playwright aborts *all* collection on a single module-load error, so a break in
+their specs would otherwise leave you with `0 tests in 0 files` — no safety net,
+and silently. `npm run test:e2e` runs only the product project and is immune.
+
+**If a test fails, re-run it once.** This suite has occasional flakes. If it
+passes on the second run, report it as flaky and name the test — do not treat
+it as green without saying so, and never "fix" it by adding a timeout or a
+retry. A flake nobody reports becomes a flake nobody can trust.
+
+If something was already failing before you started, say so and quote it.
 
 ### Mutation check — required when you add or change a test
 
