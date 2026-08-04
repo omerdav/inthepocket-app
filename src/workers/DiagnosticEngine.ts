@@ -1,4 +1,4 @@
-import { DiagnosticRuleId, SCORING_CATEGORIES } from './scoring.types';
+import { DiagnosticRuleId } from './scoring.types';
 
 export class DiagnosticEngine {
   /**

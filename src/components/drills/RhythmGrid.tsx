@@ -1,4 +1,4 @@
-import { h } from 'preact';
+
 import { useEffect, useRef } from 'preact/hooks';
 import { stickingCuePlacement } from '../../state/settings';
 

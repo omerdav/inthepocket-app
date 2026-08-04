@@ -181,7 +181,8 @@ export class MidiEngine {
 
   // -- CC Tracking --
   private _cc4Value: number = 0
-  private _hiHatTracker: HiHatStateTracker
+  /** Constructed in init(); every use is guarded by `_initialized`. */
+  private _hiHatTracker!: HiHatStateTracker
 
   // -- Tracked inputs for cleanup --
   private _attachedInputs: Input[] = []
@@ -231,7 +232,8 @@ export class MidiEngine {
 
     this._hiHatTracker = new HiHatStateTracker({
       onEvent: (eventType, velocity, timestamp) => {
-        let note = MIDI_NOTE.HI_HAT_CHICK;
+        // Widen to number: the initialiser would otherwise pin the literal 44.
+        let note: number = MIDI_NOTE.HI_HAT_CHICK;
         if (eventType === 'hihat-open') note = MIDI_NOTE.HI_HAT_OPEN;
         if (eventType === 'hihat-closed') note = MIDI_NOTE.HI_HAT_CLOSED;
         
@@ -368,7 +370,9 @@ export class MidiEngine {
    */
   private _handleControlChange(e: ControlChangeMessageEvent): void {
     if (e.controller.number === 4) {
-      this._cc4Value = Math.round((e.value ?? 0) * 127)
+      // `Number(...)` because the installed @types/webmidi (v2) does not match
+      // the webmidi v3 runtime, and types `value` too loosely to multiply.
+      this._cc4Value = Math.round(Number(e.value ?? 0) * 127)
       this._hiHatTracker.processCC(this._cc4Value, e.timestamp ?? performance.now());
     }
   }

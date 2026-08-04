@@ -1,4 +1,4 @@
-import { MIDI_NOTE, type MidiNoteNumber } from '../audio/midi';
+import { MIDI_NOTE } from '../audio/midi';
 import type { DrumType, DrillNote } from './types';
 
 // Bi-directional mapping between DrumType and MIDI_NOTE

@@ -7,14 +7,22 @@ export const SCORING_CATEGORIES = {
 
 export type ScoringCategory = typeof SCORING_CATEGORIES[keyof typeof SCORING_CATEGORIES];
 
-export enum DiagnosticRuleId {
-  OK = 0,
-  RUSHING = 1,
-  DRAGGING = 2,
-  GHOST_TOO_LOUD = 3,
-  ACCENT_TOO_SOFT = 4,
-  ZONE_CONFUSION = 5,
-}
+/**
+ * A const object rather than an `enum`: the project sets `erasableSyntaxOnly`,
+ * under which `enum` is not permitted (it emits runtime code). Usage sites are
+ * unchanged — `DiagnosticRuleId.OK` still works — and this matches the shape
+ * already used by SCORING_CATEGORIES above.
+ */
+export const DiagnosticRuleId = {
+  OK: 0,
+  RUSHING: 1,
+  DRAGGING: 2,
+  GHOST_TOO_LOUD: 3,
+  ACCENT_TOO_SOFT: 4,
+  ZONE_CONFUSION: 5,
+} as const;
+
+export type DiagnosticRuleId = typeof DiagnosticRuleId[keyof typeof DiagnosticRuleId];
 
 export interface ScoringWorkerInitMessage {
   type: 'init';

@@ -9,6 +9,7 @@ import type {
   ScoringWorkerResultMessage,
 } from '../workers/scoring.types'
 import { SCORING_CATEGORIES } from '../workers/scoring.types'
+import { SAB_NEXT_BEAT_NS, SAB_RUNNING, NS_PER_SEC } from '../audio/metronomeSab'
 
 /**
  * Plays a ContentUnit and grades it.
@@ -170,7 +171,6 @@ export class DrillRunner {
   }
 
   private async _awaitFirstBeat(view: BigInt64Array, ctx: AudioContext): Promise<number> {
-    const { SAB_NEXT_BEAT_NS, SAB_RUNNING, NS_PER_SEC } = await import('../audio/metronomeSab')
     const deadline = performance.now() + 2000
     for (;;) {
       if (Atomics.load(view, SAB_RUNNING) === 1n) {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { MidiEngine, MIDI_NOTE, HitEvent } from '../midi'
-import { WebMidi } from 'webmidi'
+import { MidiEngine, MIDI_NOTE, type HitEvent } from '../midi'
+
 
 // Mock WebMidi
 vi.mock('webmidi', () => ({
@@ -37,7 +37,7 @@ describe('MidiEngine', () => {
 
   describe('Crosstalk filter', () => {
     it('should pass rim if arriving >10ms after head', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_HEAD, 100)
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 111) // 11ms after
@@ -46,7 +46,7 @@ describe('MidiEngine', () => {
     })
 
     it('should discard rim if arriving <10ms after head', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_HEAD, 100)
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 109) // 9ms after
@@ -55,7 +55,7 @@ describe('MidiEngine', () => {
     })
 
     it('should pass rim with no prior head', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 100)
       expect(hits).toHaveLength(1)
@@ -63,7 +63,7 @@ describe('MidiEngine', () => {
     })
 
     it('should pass head even if arriving <10ms after rim (causal filter)', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 100)
       triggerNoteOn(MIDI_NOTE.SNARE_HEAD, 105) // 5ms after
@@ -75,7 +75,7 @@ describe('MidiEngine', () => {
 
   describe('UI debounce', () => {
     it('should allow both rim clicks if >80ms apart', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 100)
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 181) // 81ms after
@@ -84,7 +84,7 @@ describe('MidiEngine', () => {
     })
 
     it('should block second rim click if <80ms apart', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 100)
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 150) // 50ms after
@@ -93,7 +93,7 @@ describe('MidiEngine', () => {
     })
 
     it('should never allow non-rim notes for UI navigation', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.KICK, 100)
       triggerNoteOn(MIDI_NOTE.SNARE_HEAD, 200)
@@ -105,7 +105,7 @@ describe('MidiEngine', () => {
   describe('Active dead-zone', () => {
     it('should disallow UI navigation when drill is active', () => {
       engine.setDrillActive(true)
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 100)
       expect(hits[0].uiNavigationAllowed).toBe(false)
@@ -113,7 +113,7 @@ describe('MidiEngine', () => {
 
     it('should allow UI navigation when drill is not active', () => {
       engine.setDrillActive(false)
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 100)
       expect(hits[0].uiNavigationAllowed).toBe(true)
@@ -123,7 +123,7 @@ describe('MidiEngine', () => {
       engine.setDrillActive(true)
       triggerNoteOn(MIDI_NOTE.SNARE_RIM, 100) // This hit's time is recorded in lastRimUiTime
       
-      let hits = []
+      const hits: HitEvent[] = []
       engine.onHit(h => hits.push({ ...h }))
       
       engine.setDrillActive(false) // This should reset lastRimUiTime
@@ -174,7 +174,7 @@ describe('MidiEngine', () => {
     })
 
     it('should allow subscriber dispose function to work correctly', () => {
-      let hits = []
+      const hits: HitEvent[] = []
       const unsubscribe = engine.onHit(h => hits.push({ ...h }))
       
       triggerNoteOn(MIDI_NOTE.KICK, 100)

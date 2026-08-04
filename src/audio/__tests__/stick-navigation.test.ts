@@ -40,7 +40,7 @@ describe('StickNavigationController', () => {
 
   // Helper to create a hit event
   const makeHit = (note: number, timestamp: number, uiNavigationAllowed = true): HitEvent => ({
-    note, velocity: 100, timestamp, seq: 0, uiNavigationAllowed,
+    note, velocity: 100, timestamp, seq: 0, uiNavigationAllowed, deltaMs: 0,
   });
 
   // a) Dynamic mapping tests
@@ -65,7 +65,7 @@ describe('StickNavigationController', () => {
       // Note 40 is no longer mapped to scroll-down, but it IS still mapped to pause
       // So it should NOT fire stick-scroll-down
       const scrollEvents = dispatchEventSpy.mock.calls.filter(
-        ([e]) => (e as CustomEvent).type === 'stick-scroll-down'
+        ([e]: [Event]) => (e as CustomEvent).type === 'stick-scroll-down'
       );
       expect(scrollEvents).toHaveLength(0);
     });

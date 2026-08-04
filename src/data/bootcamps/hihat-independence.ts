@@ -75,7 +75,7 @@ export const HiHatIndependenceDrill4: ContentUnit = {
   tier: 'Bootcamp',
   category: 'Hi-Hat Independence',
   bpm: 80,
-  sequence: [
+  sequence: ([
     // Upbeat hi-hat chicks
     { targetTimeMs: getMs(80, 0.5), drumType: 'hihat-chick', sticking: '', isAccent: false },
     { targetTimeMs: getMs(80, 1.5), drumType: 'hihat-chick', sticking: '', isAccent: false },
@@ -87,7 +87,9 @@ export const HiHatIndependenceDrill4: ContentUnit = {
     { targetTimeMs: getMs(80, 7.5), drumType: 'hihat-chick', sticking: '', isAccent: false },
     // Snare backbeat
     ...generateSnareBackbeat(80, 2)
-  ].sort((a, b) => a.targetTimeMs - b.targetTimeMs),
+    // `satisfies` restores contextual typing that `.sort()` otherwise strips,
+    // so a mistyped drumType is caught here rather than widening to string.
+  ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     timingWindowMs: 35,
     timingAccuracyPercent: 90,
@@ -104,7 +106,7 @@ export const HiHatIndependenceDrill5: ContentUnit = {
   tier: 'Bootcamp',
   category: 'Hi-Hat Independence',
   bpm: 80,
-  sequence: [
+  sequence: ([
     ...generateHiHatSequence(80, 2), // Quarter note chicks
     ...generateSnareBackbeat(80, 2),
     // Basic kick pattern (1, 3, and of 3)
@@ -114,7 +116,7 @@ export const HiHatIndependenceDrill5: ContentUnit = {
     { targetTimeMs: getMs(80, 4), drumType: 'kick', sticking: 'R', isAccent: true },
     { targetTimeMs: getMs(80, 6), drumType: 'kick', sticking: 'R', isAccent: true },
     { targetTimeMs: getMs(80, 6.5), drumType: 'kick', sticking: 'R', isAccent: true },
-  ].sort((a, b) => a.targetTimeMs - b.targetTimeMs),
+  ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     timingWindowMs: 35,
     timingAccuracyPercent: 95,

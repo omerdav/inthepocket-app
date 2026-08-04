@@ -12,10 +12,9 @@ import { DrillSession } from './components/drills/DrillSession'
 import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
 import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
-import { HiHatCalibration, isCalibrationOpen, hasCompletedHiHatCalibration } from './components/layout/HiHatCalibration'
+import { HiHatCalibration, isCalibrationOpen } from './components/layout/HiHatCalibration'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
 import { useSignalEffect } from '@preact/signals'
-import { evaluateIndependencePass, HiHatIndependenceDrill5 } from './data/bootcamps/hihat-independence'
 
 // E2E Hooks
 if (typeof window !== 'undefined') {
@@ -28,9 +27,6 @@ if (typeof window !== 'undefined') {
   };
   (window as any).setStickingCuePlacement = (placement: 'inside' | 'underneath') => {
     stickingCuePlacement.value = placement;
-  };
-  (window as any).__E2E_EVALUATE_DRILL5__ = (timing: Int8Array, dynamics: Int8Array, diagnostics: Uint8Array, decouplingScore: number = 0) => {
-    return evaluateIndependencePass(HiHatIndependenceDrill5, timing, decouplingScore);
   };
 }
 import './app.css'
@@ -109,7 +105,6 @@ export function App() {
 
     // Subscribe to MIDI hits
     const unsub = midiEngine.onHit((hit: HitEvent) => {
-      const pad = PAD_MAP.find(p => p.note === hit.note)
       setActivePad(hit.note)
       setTimeout(() => setActivePad(null), 150)
 

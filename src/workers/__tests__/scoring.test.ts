@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ScoringWorkerCalculateMessage, SCORING_CATEGORIES, DiagnosticRuleId } from '../scoring.types';
+import type { ScoringWorkerCalculateMessage } from '../scoring.types';
+import { DiagnosticRuleId } from '../scoring.types';
 
 // Mock self for the worker
 const postMessageMock = vi.fn();
