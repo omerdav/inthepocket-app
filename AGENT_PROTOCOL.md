@@ -1,0 +1,176 @@
+# Agent Protocol — read this before every task
+
+You are implementing a task for **InThePocket**, a zero-latency practice app for electronic drummers. Timing correctness is the product; a subtle error here is worse than a crash, because it silently teaches a drummer the wrong thing.
+
+This document is standing law. The task spec tells you *what*; this tells you *how*, and it wins wherever the two disagree.
+
+---
+
+## 1. Why this protocol is strict
+
+This codebase was previously built by agents who reported work complete without verifying it. The result, found by later audit:
+
+- A metronome whose `process()` never wrote to `outputs` — **it produced no sound at all** — recorded as "✅ COMPLETE — ALL QA CHECKS PASSED".
+- Two tests "verifying" that engine which both reduced to `expect(true).toBe(true)`.
+- A `ScoringWorker` that failed to load in the browser and answered nothing, while the app posted messages to it. No hit was ever scored.
+- A suite reported as "18/18 passing" that was actually 19 passed, 1 failed.
+
+Every rule below exists because one of those happened. None of them are ceremony.
+
+---
+
+## 2. The five hard rules
+
+### Rule 1 — Never weaken a test to make it pass
+
+You may **not**, without explicit written approval in the task spec:
+
+- change an assertion's expected value
+- loosen a tolerance, threshold, or timeout to make a check pass
+- add `test.skip`, `test.fail`, `.only`, or comment a test out
+- delete a test or an assertion
+- catch and swallow an error that a test was relying on
+
+If a test fails, the default assumption is **the code is wrong**. If you believe the test is wrong, **stop and report it** (§6). Do not decide this yourself.
+
+### Rule 2 — Never assert a literal
+
+A test must assert a value produced by the system under test. These are forbidden:
+
+```js
+expect(true).toBe(true)                    // asserts nothing
+const x = 5; expect(x).toBe(5)             // asserts your own input
+return true                                // "simulated check"
+```
+
+If you cannot obtain a real value to assert, the test is not ready — say so.
+
+### Rule 3 — "Done" requires a user-reachable path
+
+A module with passing unit tests and no caller is **written**, not **done**. In your report you must name the screen or flow a person can use to reach the code you wrote. "It is exported" and "it is called from a test" are not answers.
+
+### Rule 4 — No test scaffolding in the production bundle
+
+Do not add `window.__E2E_*` hooks, `navigator.webdriver` branches, or test-only flags to `src/`. If a test needs to reach something, expose it the way a **user** reaches it — a URL, a DOM attribute, a real event. Precedent: drill selection is `?drill=<id>`, a real deep link, not a hook.
+
+### Rule 5 — Report only what you ran
+
+Every claim of success must be backed by **pasted terminal output** from a command you actually executed in that session. Never write "tests pass" from memory or inference.
+
+---
+
+## 3. Verification — run all of these, every task
+
+```bash
+npm run build
+```
+```bash
+npx vitest run
+```
+```bash
+npx playwright test
+```
+
+All three must be green. Paste the **tail of each** into your report. If any was already failing before you started, say so explicitly and quote the pre-existing failure.
+
+### Mutation check — required when you add or change a test
+
+A test that cannot fail is worse than no test, because it manufactures confidence. So prove yours can:
+
+1. Deliberately break the code the test covers (one line is enough).
+2. Run the test. **Confirm it goes red.**
+3. Restore the code exactly.
+4. Re-run. Confirm green.
+5. Report what you broke and which tests failed.
+
+Example from this repo: silencing the metronome turns 5 of 8 engine tests red; restoring the hardcoded 120 BPM fails the tempo test alone. That is what a working test suite looks like.
+
+---
+
+## 4. Scope discipline
+
+- Touch **only** the files listed in the task spec. If the work genuinely requires another file, stop and report before touching it.
+- Never modify files under `e2e/simulation/` — another team owns them.
+- Never modify `AGENT_PROTOCOL.md` or anything in `../inthepocket-planning/`.
+- Do not refactor, rename, reformat, or "clean up" code outside the task. Unrequested churn makes review expensive and hides the real change.
+- Do not add dependencies. If you think one is needed, report it.
+
+---
+
+## 5. Code standards
+
+- **Match the surrounding code.** Its naming, comment density, and idiom are the style guide.
+- **Comment the *why*, never the *what*.** `// increment i` is noise. `// Fold to the nearest beat: differencing against the next one reports a hit 5ms late as ~495ms early` is the reason the code exists.
+- **Zero allocation in hot paths.** No `new`, no array literals, no closures inside render loops, MIDI handlers, or the audio worklet. Pre-allocate and reuse.
+- **TypeScript is strict.** `erasableSyntaxOnly` forbids `enum` and constructor parameter properties. `verbatimModuleSyntax` means type-only imports **must** use `import type` — getting this wrong silently breaks module loading at runtime, which is exactly how the ScoringWorker died.
+- **Never guess at timing.** If you need to know when something happens, read the clock or await the real signal. Do not add `setTimeout` to "let things settle" in `src/`.
+
+---
+
+## 6. When you are blocked or disagree
+
+**Stop and report. Do not improvise.**
+
+Report immediately if:
+
+- a test fails and you believe the test is wrong
+- the spec is ambiguous or contradicts the code
+- the work requires a file outside your scope
+- you cannot make something pass without breaking one of the five rules
+- you find a bug unrelated to your task (report it, do not fix it)
+
+A blocked task reported honestly is a good outcome. A task reported complete that isn't is the failure this protocol exists to prevent.
+
+---
+
+## 7. Report format
+
+End every task with exactly this:
+
+```markdown
+## Task: <id> — <title>
+
+### What I changed
+- <file>: <one line on what and why>
+
+### User-reachable path
+<The exact screen/flow a person uses to reach this. Required.>
+
+### Verification
+$ npm run build
+<pasted tail>
+
+$ npx vitest run
+<pasted tail>
+
+$ npx playwright test
+<pasted tail>
+
+### Mutation check
+Broke: <what>
+Result: <which tests went red>
+Restored: yes — re-ran, green
+
+### Requirements
+- [x] R1 — <how it was satisfied>
+- [ ] R3 — NOT DONE because <reason>
+
+### Notes for review
+<Anything you were unsure about, chose between, or noticed in passing.>
+```
+
+Never mark a requirement `[x]` you did not complete. An honest `[ ]` with a reason is always the right answer.
+
+---
+
+## 8. Bugs from the simulation suite
+
+The simulation suite plays drills as modelled drummers on modelled hardware and checks the app's diagnosis against known ground truth. A failure there means one of three things:
+
+1. **The app is wrong** — the common case. Fix the app.
+2. **The oracle's expectation is wrong.** Not yours to change (§4).
+3. **The simulated drummer is unrealistic.** Also not yours to change.
+
+**You may only act on case 1**, and only when the task spec says so. For 2 and 3, report the finding with evidence and stop.
+
+When fixing case 1, the fix must address the **cause**, not the symptom. Example: a drummer with scattered timing being told they are "rushing" is not fixed by changing the message — it is fixed by checking variance before consulting per-hit rules. Ask what the drummer would do with the feedback; if the answer is "the wrong thing", you have not fixed it.
