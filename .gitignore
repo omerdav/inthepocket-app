@@ -29,3 +29,4 @@ playwright-report
 blob-report
 playwright/.cache
 coverage
+e2e/simulation/reports/
