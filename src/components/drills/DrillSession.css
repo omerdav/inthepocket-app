@@ -163,3 +163,14 @@
   inset: 0;
   pointer-events: none;
 }
+
+/* Persisted mastery badge — proof that progress survived a reload. */
+.drill-mastered {
+  font-size: 18px;
+  font-weight: 700;
+  color: hsl(140, 100%, 50%);
+  border: 2px solid hsl(140, 100%, 30%);
+  border-radius: 999px;
+  padding: 4px 14px;
+  white-space: nowrap;
+}

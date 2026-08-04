@@ -11,6 +11,8 @@ import {
 import { useSignalEffect } from '@preact/signals'
 import { isDrillPlaying } from '../../state/session'
 import { pendingLaunchId } from '../../state/routing'
+import { recordCompletion } from '../../session/recordCompletion'
+import { progressionStore, isMastered } from '../../store'
 import './DrillSession.css'
 
 /** The grid renders three staff positions; map the zone model onto them. */
@@ -42,7 +44,20 @@ export function DrillSession({ unit, worker }: Props) {
   const [countInBeat, setCountInBeat] = useState(0)
   const [result, setResult] = useState<DrillResult | null>(null)
   const [audioLocked, setAudioLocked] = useState(false)
+  const [mastered, setMastered] = useState(false)
   const runnerRef = useRef<DrillRunner | null>(null)
+
+  // Hydrate the mastery badge from storage. This is what makes persistence
+  // observable: pass the drill, reload, and the badge is still there.
+  useEffect(() => {
+    let cancelled = false
+    void progressionStore.load().then((state) => {
+      if (!cancelled) setMastered(isMastered(state, unit.id))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [unit.id])
 
   useEffect(() => {
     runnerRef.current = new DrillRunner(worker)
@@ -64,9 +79,13 @@ export function DrillSession({ unit, worker }: Props) {
   const start = async () => {
     setResult(null)
     setCountInBeat(0)
+    const startedAt = Date.now()
     try {
       const r = await runnerRef.current!.run(unit)
       setResult(r)
+      // Persist before refreshing the badge, so the badge reflects stored state.
+      await recordCompletion(r, startedAt)
+      setMastered(await progressionStore.load().then((s) => isMastered(s, unit.id)))
     } catch (err) {
       setAudioLocked(true)
       setPhase('idle')
@@ -93,6 +112,11 @@ export function DrillSession({ unit, worker }: Props) {
         <div class="drill-name" data-testid="drill-name">
           {unit.category} — {unit.name}
         </div>
+        {mastered && (
+          <span class="drill-mastered" data-testid="drill-mastered" title="Passed previously">
+            ✓ Mastered
+          </span>
+        )}
         <div class="drill-bpm">
           <span class="bpm-value">{unit.bpm}</span>
           <span class="bpm-label">BPM</span>

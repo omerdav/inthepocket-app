@@ -1,8 +1,21 @@
 import { signal, useSignalEffect } from '@preact/signals';
 import { midiEngine } from '../../audio/midi';
+import { profilesStore } from '../../store';
 
 export const isCalibrationOpen = signal<boolean>(false);
 export const hasCompletedHiHatCalibration = signal<boolean>(false);
+
+/**
+ * Re-apply a stored calibration and report whether one existed.
+ * Called at boot so a returning drummer is not asked to calibrate again.
+ */
+export async function restoreHiHatCalibration(): Promise<boolean> {
+  const saved = await profilesStore.hiHatCalibration();
+  if (!saved) return false;
+  (window as any).calibrateHiHat?.(saved.min, saved.max);
+  hasCompletedHiHatCalibration.value = true;
+  return true;
+}
 
 export function HiHatCalibration() {
   const step = signal<0 | 1 | 2>(0); // 0 = start, 1 = open, 2 = closed
@@ -32,8 +45,10 @@ export function HiHatCalibration() {
     } else if (step.value === 2) {
       closedValue.value = currentValue.value;
       
-      // Calibrate engine
+      // Calibrate engine, then persist — otherwise every reload asks the
+      // drummer to recalibrate a pedal that has not moved.
       (window as any).calibrateHiHat?.(openValue.value, closedValue.value);
+      void profilesStore.saveHiHatCalibration(openValue.value, closedValue.value);
       hasCompletedHiHatCalibration.value = true;
       isCalibrationOpen.value = false;
     }

@@ -12,7 +12,8 @@ import { DrillSession } from './components/drills/DrillSession'
 import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
 import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
-import { HiHatCalibration, isCalibrationOpen } from './components/layout/HiHatCalibration'
+import { HiHatCalibration, isCalibrationOpen, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
+import { progressionStore } from './store'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
 import { useSignalEffect } from '@preact/signals'
 
@@ -54,6 +55,31 @@ export function App() {
   const [recentHits, setRecentHits] = useState<Array<{ note: number; velocity: number; time: string; uiAllowed: boolean }>>([])
   const [activePad, setActivePad] = useState<number | null>(null)
   const [scoringWorker, setScoringWorker] = useState<Worker | null>(null)
+  const [hydrated, setHydrated] = useState(false)
+
+  // Restore persisted state before the first-run overlays are allowed to
+  // render, so a returning drummer is not flashed a setup prompt they already
+  // completed.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      let placed = false
+      try {
+        placed = (await progressionStore.load()).placementCompletedAt != null
+        await restoreHiHatCalibration()
+      } catch (err) {
+        // Storage unavailable (private browsing, blocked). Fall through to the
+        // first-run flow rather than blocking the app.
+        console.warn('[app] could not restore saved progress:', err)
+      }
+      if (cancelled) return
+      if (placed) hasCompletedDiagnostic.value = true
+      setHydrated(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
   const canvasRef = useRef<HTMLDivElement>(null)
   const grooveCircleRef = useRef<GrooveCircle | null>(null)
 
@@ -276,9 +302,17 @@ export function App() {
 
   const isE2E = typeof navigator !== 'undefined' && navigator.webdriver;
 
+  // Finish first-run setup: remember that placement happened, and skip the
+  // calibration prompt entirely if a stored calibration was restored at boot.
+  const completeDiagnostic = async () => {
+    hasCompletedDiagnostic.value = true;
+    await progressionStore.recordPlacement({});
+    if (!(await restoreHiHatCalibration())) isCalibrationOpen.value = true;
+  };
+
   return (
     <>
-      {!hasCompletedDiagnostic.value && !isE2E && (
+      {hydrated && !hasCompletedDiagnostic.value && !isE2E && (
         <div class="diagnostic-overlay" data-testid="diagnostic-overlay" style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
           background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', 
@@ -287,14 +321,10 @@ export function App() {
           <h2>Welcome to In The Pocket</h2>
           <p>Let's calibrate your drum kit placement.</p>
           <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
-            <button class="tab-btn active" onClick={() => {
-              hasCompletedDiagnostic.value = true;
-              isCalibrationOpen.value = true;
-            }}>Start Placement Diagnostic</button>
-            <button class="tab-btn" onClick={() => {
-              hasCompletedDiagnostic.value = true;
-              isCalibrationOpen.value = true;
-            }}>Skip</button>
+            <button class="tab-btn active" onClick={completeDiagnostic}>
+              Start Placement Diagnostic
+            </button>
+            <button class="tab-btn" onClick={completeDiagnostic}>Skip</button>
           </div>
         </div>
       )}
