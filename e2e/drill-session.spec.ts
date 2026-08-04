@@ -97,6 +97,32 @@ test('counts in on the click before the drill starts', async ({ page }) => {
   await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
 });
 
+test('Groove Circle is visible during playing and reflects live hits', async ({ page }) => {
+  await page.evaluate(() => {
+    (window as any).__drillStart = new Promise<number>((resolve) => {
+      window.addEventListener('itp-drill-phase', (e: Event) => {
+        const d = (e as CustomEvent).detail;
+        if (d.phase === 'playing' && typeof d.startPerfMs === 'number') resolve(d.startPerfMs);
+      });
+    });
+  });
+
+  await page.getByTestId('drill-start').click();
+  await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
+  
+  const canvas = page.locator('.groove-circle-container canvas');
+  await expect(canvas).toBeVisible();
+
+  const greenColor = await page.evaluate(async () => {
+    const start: number = await (window as any).__drillStart;
+    const vd = (window as any).__virtualDrummer;
+    vd.hit(38, 100, start);
+    await new Promise(r => setTimeout(r, 50));
+    return (window as any).__E2E_LAST_HIT_COLOR__;
+  });
+  expect(greenColor).toBe('hsl(142, 76%, 45%)');
+});
+
 test('a clean performance passes and reports being in the pocket', async ({ page }) => {
   test.setTimeout(60000);
   const r = await playDrill(page, {

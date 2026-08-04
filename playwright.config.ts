@@ -9,10 +9,21 @@ export default defineConfig({
    * `e2e/simulation/` and died on their `describe` import.
    */
   testMatch: '**/*.spec.ts',
-  fullyParallel: true,
+  /**
+   * Run serially. These are not ordinary UI tests: a drill plays real audio in
+   * real time for 6-10 seconds and asserts on millisecond timing. Concurrent
+   * browser contexts starve the audio thread and the scheduler, which shows up
+   * as failures that move between runs and between tests — indistinguishable,
+   * from inside a report, from a genuine regression.
+   *
+   * That ambiguity is intolerable in a delegated workflow: an agent cannot tell
+   * whether it broke something. A slower deterministic suite is worth far more
+   * than a fast one nobody can trust.
+   */
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:5173',

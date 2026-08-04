@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ContentUnit, DrumType as DataDrumType } from '../../data/types'
 import { RhythmGrid, type DrillSequence, type DrumType as GridDrumType } from './RhythmGrid'
+import { GrooveCircle } from '../canvas/GrooveCircle'
+import { categoriseTiming } from '../../workers/timingBands'
+import { midiEngine, type HitEvent } from '../../audio/midi'
 import {
   DrillRunner,
   DRILL_PHASE_EVENT,
@@ -46,6 +49,47 @@ export function DrillSession({ unit, worker }: Props) {
   const [audioLocked, setAudioLocked] = useState(false)
   const [mastered, setMastered] = useState(false)
   const runnerRef = useRef<DrillRunner | null>(null)
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const grooveCircleRef = useRef<GrooveCircle | null>(null)
+
+  useEffect(() => {
+    if (canvasContainerRef.current && !grooveCircleRef.current) {
+      const gc = new GrooveCircle({
+        bpm: unit.bpm,
+        timeSignature: 4,
+        canvasSize: 320
+      })
+      gc.mount(canvasContainerRef.current)
+      grooveCircleRef.current = gc
+    }
+    return () => {
+      if (grooveCircleRef.current) {
+        grooveCircleRef.current.unmount()
+        grooveCircleRef.current = null
+      }
+    }
+  }, [unit.bpm])
+
+  useEffect(() => {
+    if (grooveCircleRef.current) {
+      if (phase === 'count-in' || phase === 'playing') {
+        grooveCircleRef.current.start()
+      } else {
+        grooveCircleRef.current.stop()
+      }
+    }
+  }, [phase])
+
+  useEffect(() => {
+    if (phase !== 'playing') return
+    const unsub = midiEngine.onHit((hit: HitEvent) => {
+      if (grooveCircleRef.current) {
+        const category = categoriseTiming(hit.deltaMs, unit.passCriteria.timingWindowMs)
+        grooveCircleRef.current.registerHit(hit.deltaMs, category)
+      }
+    })
+    return unsub
+  }, [phase, unit.passCriteria.timingWindowMs])
 
   // Hydrate the mastery badge from storage. This is what makes persistence
   // observable: pass the drill, reload, and the badge is still there.
@@ -125,6 +169,8 @@ export function DrillSession({ unit, worker }: Props) {
 
       {/* Zone 2 — the pulse */}
       <div class="drill-center">
+        <div ref={canvasContainerRef} class="groove-circle-container" />
+
         {phase === 'idle' && !result && (
           <button class="drill-start" onClick={start} data-testid="drill-start">
             Start
