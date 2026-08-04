@@ -104,7 +104,7 @@ test.describe('M4 — Audio engine', () => {
       const { SAB_NEXT_BEAT_NS, SAB_PERIOD_NS, SAB_RUNNING } = await import(
         '/src/audio/metronomeSab.ts'
       );
-      await audioEngine.init();
+      await audioEngine.unlock();
       audioEngine.start(120, 4);
       await new Promise((r) => setTimeout(r, 400));
 
@@ -131,7 +131,7 @@ test.describe('M4 — Audio engine', () => {
       const { nearestBeatDeltaMs, SAB_NEXT_BEAT_NS, SAB_PERIOD_NS } = await import(
         '/src/audio/metronomeSab.ts'
       );
-      await audioEngine.init();
+      await audioEngine.unlock();
       audioEngine.start(120, 4);
       await new Promise((r) => setTimeout(r, 300));
 

@@ -89,7 +89,7 @@ export class DrillRunner {
   async run(unit: ContentUnit, beatsPerBar = 4): Promise<DrillResult> {
     this._abort = false
 
-    const unlocked = await audioEngine.init()
+    const unlocked = await audioEngine.unlock()
     if (!unlocked) {
       throw new Error('Audio is locked: a user gesture is required before a drill can start.')
     }

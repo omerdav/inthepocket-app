@@ -9,16 +9,34 @@ import { createMetronomeSab, SAB_RUNNING } from './metronomeSab'
  * place where the audio clock — which every timing measurement is relative to —
  * comes into existence.
  *
- * ## Activation
+ * ## Activation: prepare early, unlock on a gesture
  *
- * Browsers require a user-activation gesture (pointer / keyboard / touch) before
- * an AudioContext may run. A MIDI `noteon` is NOT such a gesture, so
- * `init()` must be called from a real interaction handler. See
- * `spike/audio-activation.html`.
+ * Browsers require a user-activation gesture (pointer / keyboard / touch)
+ * before an AudioContext may run, and that requirement resets on every page
+ * load. A MIDI `noteon` is not such a gesture.
  *
- * `init()` reports whether audio actually started rather than assuming it did,
- * so callers can surface an honest "tap to enable sound" state instead of
- * silently running a metronome nobody can hear.
+ * So the work is split:
+ *
+ *   - `prepare()` does everything expensive — construct the context (which
+ *     starts suspended), compile and load the worklet, allocate the SAB, build
+ *     the correlator. Safe to call at boot, no gesture needed.
+ *   - `unlock()` does the single operation the browser actually gates:
+ *     `resume()`. Call it from a real interaction handler.
+ *
+ * Because the heavy work is already done, the gesture produces sound
+ * immediately rather than kicking off a multi-second compile.
+ *
+ * Neither method assumes success. `unlock()` reports whether the context truly
+ * reached `running`, so the UI can ask for another tap instead of silently
+ * running a metronome nobody can hear.
+ *
+ * ## Why there is no browser-detection branch
+ *
+ * An installed PWA — and a site with enough Chrome media-engagement history —
+ * is granted autoplay, so the context reaches `running` during `prepare()`
+ * with no gesture at all. That is detected at runtime by reading `state`,
+ * never by sniffing the browser. One code path covers every case and cannot
+ * go stale when a browser changes its policy.
  */
 export class AudioEngine {
   private _ctx: AudioContext | null = null
@@ -26,7 +44,7 @@ export class AudioEngine {
   private _correlator: TimestampCorrelator | null = null
   private _sab: SharedArrayBuffer | null = null
   private _view: BigInt64Array | null = null
-  private _initPromise: Promise<boolean> | null = null
+  private _initPromise: Promise<void> | null = null
 
   /** The audio clock. Null until init() succeeds. */
   get context(): AudioContext | null {
@@ -55,25 +73,29 @@ export class AudioEngine {
     return this._view !== null && Atomics.load(this._view, SAB_RUNNING) === 1n
   }
 
+  /** True once the context and worklet exist, whether or not audio is running. */
+  get isPrepared(): boolean {
+    return this._node !== null
+  }
+
   /**
-   * Create the context, load the worklet, and attempt to start audio.
+   * Build everything that does not require a gesture: context, worklet, SAB,
+   * correlator. Call at boot so the later tap has nothing left to wait for.
    *
-   * **Call this from a user gesture handler.** Idempotent and concurrency-safe:
-   * repeated calls share one in-flight initialisation.
-   *
-   * @returns whether the context reached `running`.
+   * Idempotent and concurrency-safe — repeated calls share one in-flight
+   * initialisation.
    */
-  init(): Promise<boolean> {
+  prepare(): Promise<void> {
     if (this._initPromise) return this._initPromise
-    this._initPromise = this._doInit().catch((err) => {
-      // Allow a later gesture to retry rather than wedging permanently.
+    this._initPromise = this._doPrepare().catch((err) => {
+      // Allow a retry rather than wedging permanently.
       this._initPromise = null
       throw err
     })
     return this._initPromise
   }
 
-  private async _doInit(): Promise<boolean> {
+  private async _doPrepare(): Promise<void> {
     if (typeof SharedArrayBuffer === 'undefined' || !self.crossOriginIsolated) {
       throw new Error(
         'Not cross-origin isolated: SharedArrayBuffer is unavailable, so the ' +
@@ -98,35 +120,34 @@ export class AudioEngine {
     this._node.connect(ctx.destination)
 
     this._correlator = new TimestampCorrelator(ctx)
+  }
 
-    // resume() resolves even when the autoplay policy blocks it; `state` is the
-    // ground truth, so report that rather than the promise resolving.
-    // (The casts defeat TS narrowing — it cannot see that resume() mutates state.)
+  /**
+   * Start audio. **Call from a real interaction handler.**
+   *
+   * Prepares first if needed, so a caller that skipped `prepare()` still
+   * works — it just pays the compile cost inside the gesture.
+   *
+   * @returns whether the context truly reached `running`. `resume()` resolves
+   * even when the autoplay policy blocks it, so `state` is the only honest
+   * answer.
+   */
+  async unlock(): Promise<boolean> {
+    await this.prepare()
+    const ctx = this._ctx
+    if (!ctx) return false
+
+    // The casts defeat TS narrowing — it cannot see that resume() mutates state.
     if ((ctx.state as AudioContextState) !== 'running') {
       try {
         await ctx.resume()
       } catch {
-        /* fall through — state check below is authoritative */
+        /* fall through — the state check below is authoritative */
       }
     }
 
-    return (ctx.state as AudioContextState) === 'running'
-  }
-
-  /**
-   * Retry unlocking after a failed init. Call from a user gesture.
-   * Cheap to call when already unlocked.
-   */
-  async unlock(): Promise<boolean> {
-    const ctx = this._ctx
-    if (!ctx) return this.init()
-    if ((ctx.state as AudioContextState) === 'running') return true
-    try {
-      await ctx.resume()
-    } catch {
-      /* state check below is authoritative */
-    }
     const running = (ctx.state as AudioContextState) === 'running'
+    // The clock may have drifted while suspended.
     if (running) this._correlator?.recalibrate()
     return running
   }

@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/virtual-drummer';
+import { enterApp } from './helpers';
 
 /**
  * Deep-link routing for the active drill: `/?drill=<id>`.
@@ -10,18 +11,25 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Drill deep-link routing', () => {
+  test.beforeEach(async ({ injectVirtualDrummer }) => {
+    await injectVirtualDrummer();
+  });
+
   test('loads the default drill with no parameter', async ({ page }) => {
     await page.goto('/');
+    await enterApp(page);
     await expect(page.getByTestId('drill-name')).toHaveText(/Even Single Strokes/);
   });
 
   test('loads a specific drill from the URL', async ({ page }) => {
     await page.goto('/?drill=dynamics-gate-drill-5');
+    await enterApp(page);
     await expect(page.getByTestId('drill-name')).toHaveText(/Dynamics Gate Graduation/);
   });
 
   test('reaches the hi-hat bootcamp, previously unreachable', async ({ page }) => {
     await page.goto('/?drill=hh-indep-5');
+    await enterApp(page);
     await expect(page.getByTestId('drill-name')).toBeVisible();
     const name = await page.getByTestId('drill-name').textContent();
     expect(name).toContain('Hi-Hat Independence');
@@ -29,11 +37,13 @@ test.describe('Drill deep-link routing', () => {
 
   test('falls back to the default on an unknown id rather than rendering nothing', async ({ page }) => {
     await page.goto('/?drill=does-not-exist');
+    await enterApp(page);
     await expect(page.getByTestId('drill-name')).toHaveText(/Even Single Strokes/);
   });
 
   test('selecting from the menu updates the URL', async ({ page }) => {
     await page.goto('/');
+    await enterApp(page);
     await page.getByTestId('menu-item-dynamics-gate-drill-3').click();
     await expect(page).toHaveURL(/drill=dynamics-gate-drill-3/);
     await expect(page.getByTestId('drill-name')).toHaveText(/Dynamics Gate/);
@@ -41,6 +51,7 @@ test.describe('Drill deep-link routing', () => {
 
   test('the back button returns to the previous drill', async ({ page }) => {
     await page.goto('/?drill=dynamics-gate-drill-1');
+    await enterApp(page);
     await page.getByTestId('menu-item-dynamics-gate-drill-4').click();
     await expect(page).toHaveURL(/drill=dynamics-gate-drill-4/);
 
@@ -61,7 +72,7 @@ test.describe('Drill deep-link routing', () => {
 
     for (const id of ids) {
       await page.goto(`/?drill=${id}`);
-      await expect(page.getByTestId('drill-session')).toBeVisible();
+      await enterApp(page);
       await expect(page.getByTestId('drill-start')).toBeVisible();
     }
   });

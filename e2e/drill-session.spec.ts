@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/virtual-drummer';
+import { enterApp } from './helpers';
 
 /**
  * M5 — the vertical slice, end to end.
@@ -79,7 +80,7 @@ async function playDrill(
 test.beforeEach(async ({ page, injectVirtualDrummer }) => {
   await injectVirtualDrummer();
   await page.goto('/');
-  await expect(page.getByTestId('drill-session')).toBeVisible();
+  await enterApp(page);
 });
 
 test('the product screen shows a real drill, not a debug harness', async ({ page }) => {

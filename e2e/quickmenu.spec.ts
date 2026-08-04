@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { enterApp } from './helpers';
 
 test.describe('QuickMenu UI & Navigation', () => {
 
@@ -7,6 +8,7 @@ test.describe('QuickMenu UI & Navigation', () => {
   // drill-playback toggle.
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await enterApp(page);
   });
 
   test('Visibility State: QuickMenu is unmounted during active drill playback', async ({ page }) => {

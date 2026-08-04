@@ -14,6 +14,7 @@ import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
 import { HiHatCalibration, isCalibrationOpen, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
 import { progressionStore } from './store'
+import { EngineWarmup } from './components/layout/EngineWarmup'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
 import { useSignalEffect } from '@preact/signals'
 
@@ -56,6 +57,7 @@ export function App() {
   const [activePad, setActivePad] = useState<number | null>(null)
   const [scoringWorker, setScoringWorker] = useState<Worker | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const [warmedUp, setWarmedUp] = useState(false)
 
   // Restore persisted state before the first-run overlays are allowed to
   // render, so a returning drummer is not flashed a setup prompt they already
@@ -301,6 +303,13 @@ export function App() {
   });
 
   const isE2E = typeof navigator !== 'undefined' && navigator.webdriver;
+
+  // Session entry: satisfy the browser's gesture requirement, then confirm the
+  // kit. Skips itself when autoplay is already granted (installed PWA), so
+  // there is one code path rather than an install-aware branch.
+  if (!warmedUp && !IS_DEV_VIEW) {
+    return <EngineWarmup onReady={() => setWarmedUp(true)} />;
+  }
 
   // Finish first-run setup: remember that placement happened, and skip the
   // calibration prompt entirely if a stored calibration was restored at boot.

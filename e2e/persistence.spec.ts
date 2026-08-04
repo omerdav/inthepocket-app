@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/virtual-drummer';
+import { enterApp } from './helpers';
 
 /**
  * M6 checkpoint: progress survives a reload.
@@ -62,7 +63,7 @@ test.beforeEach(async ({ page, injectVirtualDrummer }) => {
     for (const s of ALL_STORES) await db.clear(s);
   });
   await page.reload();
-  await expect(page.getByTestId('drill-session')).toBeVisible();
+  await enterApp(page);
 });
 
 test('a fresh install shows no mastery badge', async ({ page }) => {
@@ -80,7 +81,7 @@ test('passing a drill survives a reload', async ({ page }) => {
 
   // ...and is still there after a full reload, which is the whole point.
   await page.reload();
-  await expect(page.getByTestId('drill-session')).toBeVisible();
+  await enterApp(page);
   await expect(page.getByTestId('drill-mastered')).toBeVisible();
 });
 
@@ -89,7 +90,7 @@ test('the attempt is written to progression and telemetry', async ({ page }) => 
 
   await playCleanRun(page);
   await page.reload();
-  await expect(page.getByTestId('drill-session')).toBeVisible();
+  await enterApp(page);
 
   const { progression, telemetry } = await readStored(page);
 
@@ -117,11 +118,12 @@ test('mastery is per drill, not global', async ({ page }) => {
 
   // A different drill must not inherit the badge.
   await page.goto('/?drill=dynamics-gate-drill-3');
-  await expect(page.getByTestId('drill-session')).toBeVisible();
+  await enterApp(page);
   await expect(page.getByTestId('drill-mastered')).toHaveCount(0);
 
   // ...and returning to the first one still shows it.
   await page.goto('/?drill=dynamics-gate-drill-1');
+  await enterApp(page);
   await expect(page.getByTestId('drill-mastered')).toBeVisible();
 });
 

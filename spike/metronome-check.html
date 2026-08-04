@@ -108,7 +108,7 @@ verify().catch(e => log('ERROR: ' + e.stack));
 const liveState = document.getElementById('livestate');
 
 document.getElementById('play').addEventListener('click', async () => {
-  const unlocked = await audioEngine.init();
+  const unlocked = await audioEngine.unlock();
   liveState.textContent = unlocked
     ? 'context running — you should hear it'
     : 'context BLOCKED by autoplay policy';

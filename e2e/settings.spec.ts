@@ -1,10 +1,12 @@
 import { test, expect } from './fixtures/virtual-drummer';
 import { MIDI_NOTE } from '../src/audio/midi';
+import { enterApp } from './helpers';
 
 test.describe('Settings Menu UI E2E', () => {
   test.beforeEach(async ({ injectVirtualDrummer, page }) => {
     await injectVirtualDrummer();
     await page.goto('/');
+    await enterApp(page);
     // Wait for the async initialization of MidiEngine and StickNavigationController to complete
     await expect(page.locator('.midi-status-badge')).toContainText('WebMIDI Active', { timeout: 5000 });
   });
@@ -22,6 +24,12 @@ test.describe('Settings Menu UI E2E', () => {
     
     // Release hi-hat so subsequent single rim hits aren't treated as a pause gesture
     await sendCC(4, 0);
+
+    // Clear the 80ms rim debounce (UI_DEBOUNCE_MS in midi.ts). The menu was
+    // opened with rim hits, so a scroll issued immediately after would be
+    // suppressed as an accidental double-trigger — correct product behaviour,
+    // and the test has to respect it rather than race it.
+    await page.waitForTimeout(120);
   };
 
   test('Stick Navigation Wrapping', async ({ page, hitDrum, sendCC }) => {
