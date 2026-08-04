@@ -41,7 +41,7 @@ export function generatePerformance(
     let controlError = 1 - drummer.dynamicControl;
     
     // Check if it's a ghost based on velocityRange
-    const isGhost = (note as any).velocityRange && (note as any).velocityRange.max <= 35;
+    const isGhost = note.velocityRange !== undefined && note.velocityRange.max <= 35;
     
     if (note.isAccent) {
       targetVel = 110;

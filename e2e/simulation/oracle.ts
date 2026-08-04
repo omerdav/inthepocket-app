@@ -2,6 +2,7 @@ import type { DrummerProfile } from './drummers';
 import type { KitProfile, Zone } from './kits';
 import { getDrill } from '../../src/data/registry';
 import { kitSupportsZones, kits } from './kits';
+import { DiagnosticRuleId } from '../../src/workers/scoring.types';
 
 /**
  * The oracle defines the ground truth for what the app *should* diagnose
@@ -40,44 +41,44 @@ export function getExpectedDiagnosis(drummer: DrummerProfile, kit: KitProfile, d
 
     const offsetMs = drummer.timingBiasMs + kit.triggerLatencyMs;
 
-    let ruleId = 4; // DiagnosticRuleId.OK
+    let ruleId: DiagnosticRuleId = DiagnosticRuleId.OK;
 
     if (hitZone !== targetZone) {
-      ruleId = 5; // DiagnosticRuleId.ZONE_CONFUSION
+      ruleId = DiagnosticRuleId.ZONE_CONFUSION;
     } else if (hitVelocity < targetMin) {
-      ruleId = 3; // DiagnosticRuleId.ACCENT_TOO_SOFT
+      ruleId = DiagnosticRuleId.ACCENT_TOO_SOFT;
     } else if (hitVelocity > targetMax) {
-      ruleId = 2; // DiagnosticRuleId.GHOST_TOO_LOUD
+      ruleId = DiagnosticRuleId.GHOST_TOO_LOUD;
     } else if (offsetMs < -30) {
-      ruleId = 0; // DiagnosticRuleId.RUSHING
+      ruleId = DiagnosticRuleId.RUSHING;
     } else if (offsetMs > 30) {
-      ruleId = 1; // DiagnosticRuleId.DRAGGING
+      ruleId = DiagnosticRuleId.DRAGGING;
     }
 
-    if (ruleId !== 4) {
+    if (ruleId !== DiagnosticRuleId.OK) {
       byRule.set(ruleId, (byRule.get(ruleId) ?? 0) + 1);
     }
   }
 
   // Aggregate: most frequent rule
-  let topRule = 4;
+  let topRule: DiagnosticRuleId = DiagnosticRuleId.OK;
   let topCount = 0;
   for (const [rule, count] of byRule) {
     if (count > topCount) {
-      topRule = rule;
+      topRule = rule as DiagnosticRuleId;
       topCount = count;
     }
   }
 
   switch (topRule) {
-    case 0: return { category: 'rushing', regex: /rushing.*ahead/i };
-    case 1: return { category: 'dragging', regex: /dragging.*behind/i };
-    case 2: return { category: 'ghost-too-loud', regex: /ghost/i };
-    case 3: return { category: 'accent-too-soft', regex: /accent/i };
-    case 5: return { category: 'zone-confusion', regex: /head instead of the rim/i };
+    case DiagnosticRuleId.RUSHING: return { category: 'rushing', regex: /rushing.*ahead/i };
+    case DiagnosticRuleId.DRAGGING: return { category: 'dragging', regex: /dragging.*behind/i };
+    case DiagnosticRuleId.GHOST_TOO_LOUD: return { category: 'ghost-too-loud', regex: /ghost/i };
+    case DiagnosticRuleId.ACCENT_TOO_SOFT: return { category: 'accent-too-soft', regex: /accent/i };
+    case DiagnosticRuleId.ZONE_CONFUSION: return { category: 'zone-confusion', regex: /head instead of the rim/i };
   }
 
-  // If no rule matched, check variance. In the oracle, Sam has 0 bias, so topRule is 4.
+  // If no rule matched, check variance. In the oracle, Sam has 0 bias, so topRule is DiagnosticRuleId.OK.
   // But Sam's sigma is 45, which means he is inconsistent. The oracle SHOULD predict inconsistent.
   if (drummer.timingSigmaMs > 20) {
     return { category: 'inconsistent', regex: /inconsistent/i };
