@@ -60,6 +60,7 @@ export interface ScoringWorkerResultMessage {
   categories: Int8Array; // Category for each target beat
   dynamicScores: Int8Array; // 1 for PASS, 0 for FAIL
   diagnosticRuleIds: Uint8Array; // Maps to DiagnosticRuleId enum
+  struckZones: Int8Array; // The MIDI note actually struck for each target, or -1 for MISS
   numResults: number;    // Equals numTargets
   decouplingScore?: number; // Pearson r score between hand and foot
 }

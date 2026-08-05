@@ -10,6 +10,7 @@ let categories: Int8Array;
 let dynamicScores: Int8Array;
 let diagnosticRuleIds: Uint8Array;
 let usedHits: Uint8Array;
+let struckZones: Int8Array;
 
 self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
   const msg = event.data;
@@ -20,6 +21,7 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
     dynamicScores = new Int8Array(msg.bufferSize);
     diagnosticRuleIds = new Uint8Array(msg.bufferSize);
     usedHits = new Uint8Array(msg.bufferSize);
+    struckZones = new Int8Array(msg.bufferSize);
   } else if (msg.type === 'calculate') {
     const { 
       targetBeats, targetVelocityMin, targetVelocityMax, targetZones, 
@@ -35,10 +37,11 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
     }
 
     // Determine max matching distance
-    let maxDistance = 150; // default to 150ms if only 1 target
-    if (numTargets > 1) {
-      maxDistance = (targetBeats[1] - targetBeats[0]) / 2;
-    }
+    // R1: Derive from greenWindow.
+    // R3: Ceiling should be wider than the timing window to allow badly-late hits to be RED.
+    // YELLOW window is greenWindow * 1.67, RED is beyond that.
+    // Let's cap matching to Math.max(150, greenWindow * 4) to give plenty of room for RED.
+    let maxDistance = Math.max(150, greenWindow * 4);
 
     for (let j = 0; j < numTargets; j++) {
       const targetTime = targetBeats[j];
@@ -48,17 +51,24 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
 
       let minDelta = Infinity;
       let closestHitIndex = -1;
+      let bestZoneMatches = false;
 
       // Find the closest unused hit
       for (let i = 0; i < numHits; i++) {
         if (usedHits[i]) continue;
 
         const hitTime = hitTimestamps[i];
+        const hitZ = hitZones[i];
+        const zoneMatches = hitZ === targetZ;
         const delta = hitTime - targetTime;
+        const absDelta = Math.abs(delta);
+        const absMinDelta = Math.abs(minDelta);
         
-        if (Math.abs(delta) < Math.abs(minDelta)) {
+        // Prefer closer hit, OR same distance but matching zone
+        if (absDelta < absMinDelta || (absDelta === absMinDelta && zoneMatches && !bestZoneMatches)) {
           minDelta = delta;
           closestHitIndex = i;
+          bestZoneMatches = zoneMatches;
         }
       }
 
@@ -81,6 +91,8 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
 
         // Diagnostics
         diagnosticRuleIds[j] = DiagnosticEngine.evaluate(minDelta, hitV, targetMinV, targetMaxV, hitZ, targetZ);
+        
+        struckZones[j] = hitZ;
 
       } else {
         // No hit found for this target within range
@@ -88,6 +100,7 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
         categories[j] = SCORING_CATEGORIES.MISS;
         dynamicScores[j] = 0; // FAIL
         diagnosticRuleIds[j] = 0; // Default or MISS-specific rule if we had one
+        struckZones[j] = -1;
       }
     }
 
@@ -147,6 +160,7 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
       categories,
       dynamicScores,
       diagnosticRuleIds,
+      struckZones,
       numResults: numTargets,
       decouplingScore
     };

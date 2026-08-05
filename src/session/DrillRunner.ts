@@ -3,6 +3,7 @@ import { DRUM_TYPE_TO_MIDI, VELOCITY_RANGES } from '../data/utils'
 import { audioEngine } from '../audio/AudioEngine'
 import { midiEngine, type HitEvent } from '../audio/midi'
 import { evaluateDrillPass } from '../data/bootcamps/dynamics-gate'
+import { evaluateIndependencePass } from '../data/bootcamps/hihat-independence'
 import { diagnose, type DrillDiagnosis } from './diagnosis'
 import type {
   ScoringWorkerCalculateMessage,
@@ -42,6 +43,7 @@ export interface DrillResult {
   offsets: Float32Array
   dynamicScores: Int8Array
   diagnosticRuleIds: Uint8Array
+  struckZones: Int8Array
 }
 
 /** Emitted on `window` so both the UI and tests can observe real phase changes. */
@@ -207,6 +209,7 @@ export class DrillRunner {
       offsets: new Float32Array(0),
       dynamicScores: new Int8Array(0),
       diagnosticRuleIds: new Uint8Array(0),
+      struckZones: new Int8Array(0),
     }
   }
 
@@ -251,6 +254,7 @@ export class DrillRunner {
         const offsets = msg.offsets.slice(0, msg.numResults)
         const dynamicScores = msg.dynamicScores.slice(0, msg.numResults)
         const diagnosticRuleIds = msg.diagnosticRuleIds.slice(0, msg.numResults)
+        const struckZones = msg.struckZones.slice(0, msg.numResults)
 
         let valid = 0
         for (let i = 0; i < msg.numResults; i++) {
@@ -263,17 +267,36 @@ export class DrillRunner {
         }
         const accuracyPercent = msg.numResults ? (valid / msg.numResults) * 100 : 0
 
+        let passed = false;
+        let passMessage: string | undefined;
+
+        if (unit.passCriteria.decouplingScoreThreshold !== undefined) {
+          const evalResult = evaluateIndependencePass(unit, categories, msg.decouplingScore ?? 0);
+          passed = evalResult.passed;
+          passMessage = evalResult.message;
+        } else {
+          passed = evaluateDrillPass(unit, categories, dynamicScores, diagnosticRuleIds);
+        }
+
+        const diagnosis = diagnose(unit, categories, diagnosticRuleIds, offsets, msg.numResults, struckZones);
+
+        if (passMessage && !passed) {
+          diagnosis.detail = diagnosis.headline;
+          diagnosis.headline = passMessage;
+        }
+
         resolve({
           unitId: unit.id,
-          passed: evaluateDrillPass(unit, categories, dynamicScores, diagnosticRuleIds),
+          passed,
           accuracyPercent,
-          diagnosis: diagnose(unit, categories, diagnosticRuleIds, offsets, msg.numResults),
+          diagnosis,
           numTargets: msg.numResults,
           numHits: m,
           categories,
           offsets,
           dynamicScores,
           diagnosticRuleIds,
+          struckZones,
         })
       }
 

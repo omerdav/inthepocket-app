@@ -1,5 +1,8 @@
 import type { ContentUnit } from '../data/types'
 import { DiagnosticRuleId, SCORING_CATEGORIES } from '../workers/scoring.types'
+import { offsetStats } from '../store/TelemetryStore'
+import { MIDI_NOTE_TO_DISPLAY_NAME } from '../data/zoneNames'
+import { DRUM_TYPE_TO_MIDI, VELOCITY_RANGES } from '../data/utils'
 
 /**
  * Turn raw scoring output into the sentence a teacher would say.
@@ -46,12 +49,14 @@ const RULE_TEXT: Record<number, (where: string) => string> = {
     `On ${w} you hit the head instead of the rim — soft isn't the same as cross-stick.`,
 }
 
+
 export function diagnose(
   unit: ContentUnit,
   categories: Int8Array,
   diagnosticRuleIds: Uint8Array,
   offsets: Float32Array,
-  numResults: number
+  numResults: number,
+  struckZones?: Int8Array
 ): DrillDiagnosis {
   const missBeats: number[] = []
   const byRule = new Map<number, number[]>()
@@ -93,10 +98,98 @@ export function diagnose(
     }
   }
 
+  // --- Variance Check ---
+  const scoredOffsets: number[] = [];
+  for (let i = 0; i < numResults; i++) {
+    if (categories[i] !== SCORING_CATEGORIES.MISS) {
+      scoredOffsets.push(offsets[i]);
+    }
+  }
+  const { meanOffsetMs, offsetStdDevMs } = offsetStats(scoredOffsets, scoredOffsets.length);
+
+  // Separates players with a persistent directional drift (rushing/dragging)
+  // from players who are simply scattered and need to work on control.
+  const INCONSISTENT_SPREAD_MS = 30;
+  const INCONSISTENT_MAX_BIAS_MS = 20;
+
+  const isDirectionalRule = topRule === DiagnosticRuleId.RUSHING || topRule === DiagnosticRuleId.DRAGGING;
+  
+  // If the drummer is scattered rather than biased, a directional rule will give them the wrong advice (making variance worse).
+  if (offsetStdDevMs > INCONSISTENT_SPREAD_MS && Math.abs(meanOffsetMs) < INCONSISTENT_MAX_BIAS_MS) {
+    if (!topRule || isDirectionalRule) {
+      return {
+        headline: "You're inconsistent.",
+        detail: "Your timing is scattered. Focus on evenness rather than adjusting your speed.",
+        beats: []
+      }
+    }
+  }
+
+  // Only call these "ghost notes" if every flagged note actually is one. A drill
+  // that mixes ghost and normal strokes would otherwise tell the drummer to
+  // control ghost notes on beats that have none — vague and correct beats
+  // specific and wrong.
+  let ghostTooLoudIsGhost = false;
+  if (topRule === DiagnosticRuleId.GHOST_TOO_LOUD) {
+    let flagged = 0;
+    let ghostBand = 0;
+    for (let i = 0; i < numResults; i++) {
+      if (diagnosticRuleIds[i] !== DiagnosticRuleId.GHOST_TOO_LOUD) continue;
+      const note = unit.sequence[i];
+      if (!note) continue;
+      flagged++;
+      const maxVelocity = note.velocityRange
+        ? note.velocityRange.max
+        : note.isAccent
+          ? VELOCITY_RANGES.ACCENT.max
+          : VELOCITY_RANGES.NORMAL.max;
+      if (maxVelocity <= VELOCITY_RANGES.GHOST.max) ghostBand++;
+    }
+    ghostTooLoudIsGhost = flagged > 0 && ghostBand === flagged;
+  }
+
   if (topRule && RULE_TEXT[topRule]) {
     const others = byRule.size - 1
+    let headline = RULE_TEXT[topRule](phraseBeats(topBeats));
+
+    if (topRule === DiagnosticRuleId.GHOST_TOO_LOUD && !ghostTooLoudIsGhost) {
+      headline = `Your dynamics are uneven on ${phraseBeats(topBeats)} — you're hitting harder than the drill asks.`;
+    } else if (topRule === DiagnosticRuleId.ZONE_CONFUSION) {
+      // Find the specific expected and struck zones for the first confused note
+      let expectedNote = -1;
+      let struckNote = -1;
+      
+      for (let i = 0; i < numResults; i++) {
+        if (diagnosticRuleIds[i] === DiagnosticRuleId.ZONE_CONFUSION) {
+          expectedNote = DRUM_TYPE_TO_MIDI[unit.sequence[i]?.drumType] ?? -1;
+          struckNote = struckZones?.[i] ?? -1;
+          break;
+        }
+      }
+
+      if (expectedNote !== -1 && struckNote !== -1) {
+        // R4: Keep the cross-stick guidance specifically for head-instead-of-rim
+        if (expectedNote === DRUM_TYPE_TO_MIDI['snare-rim'] && struckNote === DRUM_TYPE_TO_MIDI['snare-head']) {
+          headline = `On ${phraseBeats(topBeats)} you hit the head instead of the rim — soft isn't the same as cross-stick.`;
+        } else {
+          const expectedName = MIDI_NOTE_TO_DISPLAY_NAME[expectedNote];
+          const struckName = MIDI_NOTE_TO_DISPLAY_NAME[struckNote];
+          
+          if (expectedName && struckName) {
+            headline = `On ${phraseBeats(topBeats)} you hit ${struckName} instead of ${expectedName}.`;
+          } else {
+            // R6: Fall back to something true and general
+            headline = `On ${phraseBeats(topBeats)} you hit the wrong drum zone.`;
+          }
+        }
+      } else {
+        // Fallback if data is missing
+        headline = `On ${phraseBeats(topBeats)} you hit the wrong drum zone.`;
+      }
+    }
+
     return {
-      headline: RULE_TEXT[topRule](phraseBeats(topBeats)),
+      headline,
       detail: others > 0 ? `${others} other issue${others > 1 ? 's' : ''} to work on next.` : '',
       beats: topBeats,
     }

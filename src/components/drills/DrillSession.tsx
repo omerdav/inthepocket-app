@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ContentUnit, DrumType as DataDrumType } from '../../data/types'
+import { DRUM_TYPE_TO_DISPLAY_NAME } from '../../data/zoneNames'
 import { RhythmGrid, type DrillSequence, type DrumType as GridDrumType } from './RhythmGrid'
 import { GrooveCircle } from '../canvas/GrooveCircle'
 import { categoriseTiming } from '../../workers/timingBands'
@@ -15,7 +16,8 @@ import { useSignalEffect } from '@preact/signals'
 import { isDrillPlaying } from '../../state/session'
 import { pendingLaunchId } from '../../state/routing'
 import { recordCompletion } from '../../session/recordCompletion'
-import { progressionStore, isMastered } from '../../store'
+import { progressionStore, isMastered, profilesStore } from '../../store'
+import { checkHardwareCapability, type HardwareCapabilityResult } from '../../session/hardware'
 import './DrillSession.css'
 
 /** The grid renders three staff positions; map the zone model onto them. */
@@ -48,6 +50,8 @@ export function DrillSession({ unit, worker }: Props) {
   const [result, setResult] = useState<DrillResult | null>(null)
   const [audioLocked, setAudioLocked] = useState(false)
   const [mastered, setMastered] = useState(false)
+  const [hardwareBlock, setHardwareBlock] = useState<HardwareCapabilityResult | null>(null)
+  const [hardwareWarnings, setHardwareWarnings] = useState<DataDrumType[]>([])
   const runnerRef = useRef<DrillRunner | null>(null)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const grooveCircleRef = useRef<GrooveCircle | null>(null)
@@ -98,6 +102,14 @@ export function DrillSession({ unit, worker }: Props) {
     void progressionStore.load().then((state) => {
       if (!cancelled) setMastered(isMastered(state, unit.id))
     })
+    
+    // Also evaluate hardware warnings before the user clicks start
+    void profilesStore.load().then(profile => {
+      if (cancelled) return
+      const cap = checkHardwareCapability(unit, profile.noteMap, midiEngine)
+      setHardwareWarnings(cap.warnings)
+    })
+    
     return () => {
       cancelled = true
     }
@@ -123,6 +135,15 @@ export function DrillSession({ unit, worker }: Props) {
   const start = async () => {
     setResult(null)
     setCountInBeat(0)
+    setHardwareBlock(null)
+    
+    const profile = await profilesStore.load()
+    const cap = checkHardwareCapability(unit, profile.noteMap, midiEngine)
+    if (!cap.ok) {
+      setHardwareBlock(cap)
+      return
+    }
+
     const startedAt = Date.now()
     try {
       const r = await runnerRef.current!.run(unit)
@@ -171,10 +192,29 @@ export function DrillSession({ unit, worker }: Props) {
       <div class="drill-center">
         <div ref={canvasContainerRef} class="groove-circle-container" />
 
-        {phase === 'idle' && !result && (
-          <button class="drill-start" onClick={start} data-testid="drill-start">
-            Start
-          </button>
+        {phase === 'idle' && !result && !hardwareBlock && (
+          <div class="drill-start-container">
+            {hardwareWarnings.length > 0 && (
+              <p class="hardware-warning" data-testid="hardware-warning">
+                ⚠️ This drill uses {hardwareWarnings.map(w => DRUM_TYPE_TO_DISPLAY_NAME[w]).join(' and ')}, but we haven't detected one yet.
+              </p>
+            )}
+            <button class="drill-start" onClick={start} data-testid="drill-start">
+              Start
+            </button>
+          </div>
+        )}
+        
+        {hardwareBlock && (
+          <div class="drill-result failed" data-testid="hardware-block">
+            <div class="result-verdict">Cannot Play Drill</div>
+            <p class="result-headline" data-testid="hardware-block-msg">
+              This drill uses {hardwareBlock.missing.map(m => DRUM_TYPE_TO_DISPLAY_NAME[m]).join(' and ')}, but your kit doesn't have a separate zone for it.
+            </p>
+            <button class="drill-start again" onClick={() => setHardwareBlock(null)}>
+              Back
+            </button>
+          </div>
         )}
 
         {phase === 'count-in' && (

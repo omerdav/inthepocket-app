@@ -24,8 +24,8 @@ export interface HiHatCalibrationRecord {
 
 export interface KitProfileRecord {
   hiHat: HiHatCalibrationRecord | null
-  /** Per-zone MIDI note overrides. Null means "use the built-in defaults". */
-  noteMap: Partial<Record<DrumType, number>> | null
+  /** Per-zone MIDI note overrides. Null means "use the built-in defaults". A specific zone set to null means it's absent. */
+  noteMap: Partial<Record<DrumType, number | null>> | null
   updatedAt: number
 }
 

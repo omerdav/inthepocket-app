@@ -165,6 +165,9 @@ export class MidiEngine {
   // -- Per-note timestamp rings --
   private _snareHeadRing: TimestampRing | null = null
   private _snareRimRing: TimestampRing | null = null
+  
+  // -- Track seen notes for hardware capability check --
+  private _seenNotes: Set<number> = new Set<number>()
 
   // -- UI debounce --
   private _lastRimUiTime = -Infinity
@@ -207,6 +210,11 @@ export class MidiEngine {
   /** True if the hi-hat pedal is pressed down past the threshold. */
   get hiHatClosed(): boolean {
     return this._cc4Value > 90
+  }
+
+  /** Whether the given MIDI note has been received since boot. */
+  hasSeenNote(note: number): boolean {
+    return this._seenNotes.has(note)
   }
 
   // -----------------------------------------------------------------------
@@ -313,6 +321,10 @@ export class MidiEngine {
     this._snareHeadRing?.reset()
     this._snareRimRing?.reset()
 
+    // Which zones we have seen is a property of the connected kit, not of the
+    // app session — a rim hit on a previous kit must not vouch for the next one.
+    this._seenNotes.clear()
+
     this._initialized = false
   }
 
@@ -416,6 +428,9 @@ export class MidiEngine {
       }
       this._snareHeadRing!.push(timestamp)
     }
+    
+    // Track that we have seen this note (used for capability warnings)
+    this._seenNotes.add(note)
 
     // ---- UI navigation debounce + dead-zone for rim clicks ----
     // Compute whether this hit qualifies as a UI navigation trigger.
