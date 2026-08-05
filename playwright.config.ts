@@ -41,14 +41,21 @@ export default defineConfig({
    */
   projects: [
     {
+      // Everything a task must verify against — including the simulation
+      // *smoke* suite, which is the only thing that checks the app's feedback
+      // is correct rather than merely non-crashing. Excluding it entirely (the
+      // previous `**/simulation/**`) meant it never ran in the normal workflow.
       name: 'product',
       testDir: './e2e',
-      testIgnore: '**/simulation/**',
+      testIgnore: '**/simulation-matrix.spec.ts',
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      // The 132-run matrix only. Opt-in via SIMULATION_MATRIX=1 — it takes
+      // ~15 minutes, and a break here must never block product verification.
       name: 'simulation',
       testDir: './e2e/simulation',
+      testMatch: '**/simulation-matrix.spec.ts',
       use: { ...devices['Desktop Chrome'] },
     },
   ],
