@@ -138,6 +138,10 @@ A blocked task reported honestly is a good outcome. A task reported complete tha
 
 ## 7. Report format
 
+**Write your report to the path the task spec names**, inside the repo — and also return it in your response. A report saved to a scratch directory outside the repo is a report nobody reads. This has already happened once: a full audit was written to `~/.gemini/antigravity/brain/…` and was nearly lost, while the findings it contained were the entire deliverable.
+
+If the spec names no path, use `reports/<task-id>.md` in the app repo.
+
 End every task with exactly this:
 
 ```markdown
