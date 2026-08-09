@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/virtual-drummer';
 import { runSimulation } from './harness';
+import { kits } from './kits';
 
 test.describe('Simulation Suite Core', () => {
   const alesis = kits.find(k => k.id === 'alesis-nitro-pro')!;
@@ -23,7 +24,6 @@ test.describe('Simulation Suite Core', () => {
   });
 
   test('Scattered Sam is expected to be inconsistent, but prediction 5 says he might be called rushing', async ({ page, injectVirtualDrummer }) => {
-    test.fail(); // We know this fails because of the variance check defect
     test.setTimeout(60000);
     await injectVirtualDrummer();
     
