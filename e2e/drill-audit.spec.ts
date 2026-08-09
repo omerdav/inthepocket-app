@@ -135,6 +135,8 @@ test.describe('T-005 Drill Audit', () => {
           console.log(`[RUSHING RUN for ${drillId}]: Passed=${passed}, Diagnosis="${diagnosis}"`);
         }
 
+        expect(diagnosis, `Drill must not stall with an engine error`).not.toContain('Audio System Interrupted');
+        
         expect(passed, `${label} run for ${drillId} (earlyMs=${earlyMs}, window=${drill.passCriteria.timingWindowMs})`).toBe(
           expectPass ? 'true' : 'false'
         );

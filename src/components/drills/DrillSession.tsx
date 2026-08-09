@@ -161,9 +161,35 @@ export function DrillSession({ unit, worker }: Props) {
       await recordCompletion(r, startedAt)
       setMastered(await progressionStore.load().then((s) => isMastered(s, unit.id)))
     } catch (err) {
-      setAudioLocked(true)
-      setPhase('idle')
       console.warn('[DrillSession]', err)
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Audio is locked')) {
+        setAudioLocked(true)
+        setPhase('idle')
+      } else {
+        let detail = 'The drill could not complete because the browser audio engine stalled or failed to start. Please try again.'
+        if (msg.includes('Metronome did not start')) {
+          detail = 'The metronome failed to start. Please try again.'
+        }
+        setResult({
+          unitId: unit.id,
+          passed: false,
+          accuracyPercent: 0,
+          diagnosis: {
+            headline: 'Audio System Interrupted',
+            detail,
+            beats: [],
+          },
+          numTargets: unit.sequence.length,
+          numHits: 0,
+          categories: new Int8Array(0),
+          offsets: new Float32Array(0),
+          dynamicScores: new Int8Array(0),
+          diagnosticRuleIds: new Uint8Array(0),
+          struckZones: new Int8Array(0),
+        })
+        setPhase('complete')
+      }
     }
   }
 
@@ -246,7 +272,9 @@ export function DrillSession({ unit, worker }: Props) {
             data-testid="drill-result"
             data-passed={String(result.passed)}
           >
-            <div class="result-verdict">{result.passed ? 'Passed' : 'Not yet'}</div>
+            <div class="result-verdict">
+              {result.passed ? 'Passed' : (result.diagnosis.headline === 'Audio System Interrupted' ? 'Interrupted' : 'Not yet')}
+            </div>
             <p class="result-headline" data-testid="result-diagnosis">
               {result.diagnosis.headline}
             </p>
