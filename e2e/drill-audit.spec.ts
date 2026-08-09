@@ -41,12 +41,14 @@ test.describe('T-005 Drill Audit', () => {
 
       await page.getByTestId('drill-start').click();
 
-      await page.evaluate(async ({ sequence, drumTypeToMidi }) => {
+      await page.evaluate(async ({ sequence, drumTypeToMidi, bpm }) => {
         const start: number = await (window as any).__drillStart;
         const vd = (window as any).__virtualDrummer;
 
         for (const note of sequence) {
-          const targetPerfMs = start + note.targetTimeMs;
+          const sixteenthMs = 60000 / bpm / 4;
+          const gridMs = Math.round(note.targetTimeMs / sixteenthMs) * sixteenthMs;
+          const targetPerfMs = start + gridMs;
           const waitFor = targetPerfMs - performance.now() - 5;
           if (waitFor > 0) await new Promise((r) => setTimeout(r, waitFor));
           
@@ -69,7 +71,7 @@ test.describe('T-005 Drill Audit', () => {
              }
           }
         }
-      }, { sequence: drill.sequence, drumTypeToMidi: DRUM_TYPE_TO_MIDI });
+      }, { sequence: drill.sequence, drumTypeToMidi: DRUM_TYPE_TO_MIDI, bpm: drill.bpm });
 
       const resultEl = page.getByTestId('drill-result');
       await expect(resultEl).toBeVisible({ timeout: 60000 });
@@ -118,13 +120,15 @@ test.describe('T-005 Drill Audit', () => {
 
       await page.getByTestId('drill-start').click();
 
-      await page.evaluate(async ({ sequence, drumTypeToMidi }) => {
+      await page.evaluate(async ({ sequence, drumTypeToMidi, bpm }) => {
         const start: number = await (window as any).__drillStart;
         const vd = (window as any).__virtualDrummer;
 
         for (const note of sequence) {
           // Play 40ms early to simulate rushing
-          const targetPerfMs = start + note.targetTimeMs - 40;
+          const sixteenthMs = 60000 / bpm / 4;
+          const gridMs = Math.round(note.targetTimeMs / sixteenthMs) * sixteenthMs;
+          const targetPerfMs = start + gridMs - 40;
           const waitFor = targetPerfMs - performance.now() - 5;
           if (waitFor > 0) await new Promise((r) => setTimeout(r, waitFor));
           
@@ -147,7 +151,7 @@ test.describe('T-005 Drill Audit', () => {
              }
           }
         }
-      }, { sequence: drill.sequence, drumTypeToMidi: DRUM_TYPE_TO_MIDI });
+      }, { sequence: drill.sequence, drumTypeToMidi: DRUM_TYPE_TO_MIDI, bpm: drill.bpm });
 
       const resultEl = page.getByTestId('drill-result');
       await expect(resultEl).toBeVisible({ timeout: 60000 });

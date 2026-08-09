@@ -21,6 +21,46 @@ const allTiming = (c: number) => Int8Array.from({ length: N }, () => c)
 const allDynamics = (v: number) => Int8Array.from({ length: N }, () => v)
 const allDiagnostics = (r: number) => Uint8Array.from({ length: N }, () => r)
 
+// T-010 R-T2. Drill 5 was re-authored onto the grid, and the risk of that kind
+// of edit is that the pedagogical shape drifts while the times get fixed. This
+// pins the shape: it is the Dynamics Gate graduation, and it must keep testing
+// kick + ghost + rim accent + ghost, gated on timing AND dynamics AND zone.
+// Moving the notes is allowed; quietly simplifying the drill is not.
+describe('Drill 5 structure', () => {
+  it('keeps four notes in the order kick, ghost, rim accent, ghost', () => {
+    expect(DynamicsGateDrill5.sequence.map((n) => n.drumType)).toEqual([
+      'kick',
+      'snare-head',
+      'snare-rim',
+      'snare-head',
+    ])
+  })
+
+  it('keeps its accent and ghost pattern', () => {
+    expect(DynamicsGateDrill5.sequence.map((n) => n.isAccent)).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ])
+  })
+
+  it('keeps the dynamic contrast that makes it a dynamics gate', () => {
+    // Ghosts and accents must stay in genuinely separate velocity ranges,
+    // otherwise the drill still plays but stops testing dynamics at all.
+    for (const note of DynamicsGateDrill5.sequence) {
+      expect(note.velocityRange, `${note.drumType} needs an explicit range`).toBeDefined()
+    }
+    const [kick, ghost, rim] = DynamicsGateDrill5.sequence
+    expect(ghost.velocityRange!.max).toBeLessThan(kick.velocityRange!.min)
+    expect(ghost.velocityRange!.max).toBeLessThan(rim.velocityRange!.min)
+  })
+
+  it('keeps its sticking', () => {
+    expect(DynamicsGateDrill5.sequence.map((n) => n.sticking)).toEqual(['R', 'L', 'R', 'L'])
+  })
+})
+
 describe('Drill 5 graduation gate', () => {
   it('sanity: the drill is 4 notes and demands 85% (Mastery band)', () => {
     expect(N).toBe(4)

@@ -45,4 +45,26 @@ describe('Drill Registry', () => {
     const ids = DRILL_REGISTRY.map((e) => e.unit.id).sort();
     expect(ids).toEqual(Object.keys(ASSIGNED_BANDS).sort());
   });
+
+  it('every drill note is exactly on a 16th note subdivision of its bpm', () => {
+    // We allow only up to 16th notes (4 subdivisions per beat)
+    // 60000 / bpm is the length of one beat in ms.
+    // Length of a 16th note is (60000 / bpm) / 4.
+    // The targetTimeMs should be an exact multiple of the 16th note length.
+    // For floating point errors, a tolerance of 0.1ms is enough to catch math errors while rejecting off-grid literals.
+    const SUBDIVISION_TOLERANCE_MS = 0.1;
+    
+    for (const entry of DRILL_REGISTRY) {
+      const drill = entry.unit;
+      const sixteenthMs = 60000 / drill.bpm / 4;
+      
+      for (const note of drill.sequence) {
+        const exactSixteenths = note.targetTimeMs / sixteenthMs;
+        const nearestSixteenth = Math.round(exactSixteenths);
+        const diffMs = Math.abs((exactSixteenths - nearestSixteenth) * sixteenthMs);
+        
+        expect(diffMs, `Note in ${drill.id} at ${note.targetTimeMs}ms is not on a 16th note grid (nearest 16th: ${nearestSixteenth * sixteenthMs}ms)`).toBeLessThan(SUBDIVISION_TOLERANCE_MS);
+      }
+    }
+  });
 });

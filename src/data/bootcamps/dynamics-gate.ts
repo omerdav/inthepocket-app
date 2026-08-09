@@ -82,10 +82,10 @@ export const DynamicsGateDrill5: ContentUnit = {
   category: 'Dynamics Gate',
   bpm: 90,
   sequence: [
-    { targetTimeMs: 0, drumType: 'kick', sticking: 'R', isAccent: true, velocityRange: { min: 90, max: 127 } },
-    { targetTimeMs: 250, drumType: 'snare-head', sticking: 'L', isAccent: false, velocityRange: { min: 15, max: 35 } },
-    { targetTimeMs: 500, drumType: 'snare-rim', sticking: 'R', isAccent: true, velocityRange: { min: 90, max: 127 } },
-    { targetTimeMs: 750, drumType: 'snare-head', sticking: 'L', isAccent: false, velocityRange: { min: 15, max: 35 } },
+    { targetTimeMs: getMs(90, 0), drumType: 'kick', sticking: 'R', isAccent: true, velocityRange: { min: 90, max: 127 } },
+    { targetTimeMs: getMs(90, 0.5), drumType: 'snare-head', sticking: 'L', isAccent: false, velocityRange: { min: 15, max: 35 } },
+    { targetTimeMs: getMs(90, 1), drumType: 'snare-rim', sticking: 'R', isAccent: true, velocityRange: { min: 90, max: 127 } },
+    { targetTimeMs: getMs(90, 1.5), drumType: 'snare-head', sticking: 'L', isAccent: false, velocityRange: { min: 15, max: 35 } },
   ],
   passCriteria: {
     ...TOLERANCE_BANDS.Mastery, // Tightens to 30ms
@@ -94,6 +94,10 @@ export const DynamicsGateDrill5: ContentUnit = {
   },
   failureDiagnostics: [],
 };
+
+function getMs(bpm: number, beats: number): number {
+  return beats * (60000 / bpm);
+}
 
 /**
  * Validates a drill session run against strict logical AND gating.
