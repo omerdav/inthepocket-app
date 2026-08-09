@@ -22,9 +22,9 @@ const allDynamics = (v: number) => Int8Array.from({ length: N }, () => v)
 const allDiagnostics = (r: number) => Uint8Array.from({ length: N }, () => r)
 
 describe('Drill 5 graduation gate', () => {
-  it('sanity: the drill is 4 notes and demands 95%', () => {
+  it('sanity: the drill is 4 notes and demands 85% (Mastery band)', () => {
     expect(N).toBe(4)
-    expect(DynamicsGateDrill5.passCriteria.timingAccuracyPercent).toBe(95)
+    expect(DynamicsGateDrill5.passCriteria.timingAccuracyPercent).toBe(85)
   })
 
   it('passes a clean run', () => {
@@ -62,10 +62,10 @@ describe('Drill 5 graduation gate', () => {
     ).toBe(false)
   })
 
-  it('accepts YELLOW timing as valid, so the gate is not GREEN-only', () => {
+  it('FAILS on all-YELLOW timing (gate is GREEN-only)', () => {
     expect(
       evaluateDrillPass(DynamicsGateDrill5, allTiming(YELLOW), allDynamics(1), allDiagnostics(DiagnosticRuleId.OK))
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('is a logical AND — any single failing axis sinks the run', () => {

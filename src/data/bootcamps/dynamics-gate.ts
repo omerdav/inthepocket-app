@@ -1,5 +1,7 @@
 import type { ContentUnit } from '../types';
 import { generateSequence } from '../utils';
+import { TOLERANCE_BANDS } from '../toleranceBands';
+import { DiagnosticRuleId, SCORING_CATEGORIES } from '../../workers/scoring.types';
 
 // Drill 1: Even single strokes on snare head only.
 export const DynamicsGateDrill1: ContentUnit = {
@@ -10,8 +12,7 @@ export const DynamicsGateDrill1: ContentUnit = {
   bpm: 80,
   sequence: generateSequence(80, ['R', 'L'], 2, 'snare-head'),
   passCriteria: {
-    timingWindowMs: 50,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Introduction,
     dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
   },
@@ -28,8 +29,7 @@ export const DynamicsGateDrill2: ContentUnit = {
   bpm: 80,
   sequence: generateSequence(80, ['R', 'L'], 2, 'snare-head'),
   passCriteria: {
-    timingWindowMs: 45,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Developing,
     dynamicContrastDb: 10,
     consecutiveBarsRequired: 2,
   },
@@ -51,8 +51,7 @@ export const DynamicsGateDrill3: ContentUnit = {
     velocityRange: note.isAccent ? { min: 90, max: 127 } : { min: 15, max: 35 }
   })),
   passCriteria: {
-    timingWindowMs: 40,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Consolidating,
     dynamicContrastDb: 15,
     consecutiveBarsRequired: 2,
   },
@@ -68,8 +67,7 @@ export const DynamicsGateDrill4: ContentUnit = {
   bpm: 80,
   sequence: generateSequence(80, ['R'], 2, 'snare-rim'),
   passCriteria: {
-    timingWindowMs: 38,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Consolidating,
     dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
   },
@@ -90,8 +88,7 @@ export const DynamicsGateDrill5: ContentUnit = {
     { targetTimeMs: 750, drumType: 'snare-head', sticking: 'L', isAccent: false, velocityRange: { min: 15, max: 35 } },
   ],
   passCriteria: {
-    timingWindowMs: 35, // Tightens to 35ms
-    timingAccuracyPercent: 95,
+    ...TOLERANCE_BANDS.Mastery, // Tightens to 30ms
     dynamicContrastDb: 15,
     consecutiveBarsRequired: 1,
   },
@@ -113,9 +110,9 @@ export function evaluateDrillPass(
 
   let totalValid = 0;
   for (let i = 0; i < timingScores.length; i++) {
-    const isTimingValid = timingScores[i] === 0 || timingScores[i] === 1; // GREEN or YELLOW
+    const isTimingValid = timingScores[i] === SCORING_CATEGORIES.GREEN;
     const isDynamicValid = dynamicScores[i] === 1; // PASS
-    const isZoneValid = diagnosticRuleIds[i] !== 5; // Not ZONE_CONFUSION
+    const isZoneValid = diagnosticRuleIds[i] !== DiagnosticRuleId.ZONE_CONFUSION;
 
     // Strict Logical AND for every note
     if (isTimingValid && isDynamicValid && isZoneValid) {

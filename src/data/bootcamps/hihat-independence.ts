@@ -1,4 +1,6 @@
 import type { ContentUnit, DrillNote } from '../types';
+import { TOLERANCE_BANDS } from '../toleranceBands';
+import { SCORING_CATEGORIES } from '../../workers/scoring.types';
 
 /**
  * Hi-Hat Independence Bootcamp
@@ -13,8 +15,7 @@ export const HiHatIndependenceDrill1: ContentUnit = {
   bpm: 80,
   sequence: generateHiHatSequence(80, 2), // Quarter note chicks for 2 bars
   passCriteria: {
-    timingWindowMs: 45,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Developing,
     dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
   },
@@ -33,8 +34,7 @@ export const HiHatIndependenceDrill2: ContentUnit = {
     ...generateSnareBackbeat(80, 2)
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
-    timingWindowMs: 40,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Consolidating,
     dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.59, // < 0.6
@@ -60,8 +60,7 @@ export const HiHatIndependenceDrill3: ContentUnit = {
     { targetTimeMs: getMs(80, 7), drumType: 'snare-head', sticking: 'L', isAccent: true },
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
-    timingWindowMs: 38,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Consolidating,
     dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.5,
@@ -91,8 +90,7 @@ export const HiHatIndependenceDrill4: ContentUnit = {
     // so a mistyped drumType is caught here rather than widening to string.
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
-    timingWindowMs: 35,
-    timingAccuracyPercent: 90,
+    ...TOLERANCE_BANDS.Mastery,
     dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.45,
@@ -118,8 +116,7 @@ export const HiHatIndependenceDrill5: ContentUnit = {
     { targetTimeMs: getMs(80, 6.5), drumType: 'kick', sticking: 'R', isAccent: true },
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
-    timingWindowMs: 35,
-    timingAccuracyPercent: 95,
+    ...TOLERANCE_BANDS.Mastery,
     dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.4, // r <= 0.4
@@ -167,7 +164,7 @@ export function evaluateIndependencePass(
 
   let totalValid = 0;
   for (let i = 0; i < timingScores.length; i++) {
-    if (timingScores[i] === 0 || timingScores[i] === 1) { // GREEN or YELLOW
+    if (timingScores[i] === SCORING_CATEGORIES.GREEN) {
       totalValid++;
     }
   }

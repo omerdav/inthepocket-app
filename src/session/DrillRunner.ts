@@ -275,8 +275,7 @@ export class DrillRunner {
         let valid = 0
         for (let i = 0; i < msg.numResults; i++) {
           if (
-            categories[i] === SCORING_CATEGORIES.GREEN ||
-            categories[i] === SCORING_CATEGORIES.YELLOW
+            categories[i] === SCORING_CATEGORIES.GREEN
           ) {
             valid++
           }
