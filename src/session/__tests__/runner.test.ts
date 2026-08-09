@@ -238,6 +238,69 @@ describe('DrillRunner Evaluator Dispatch', () => {
     expect(result.passed).toBe(true);
   });
   
+  it('R-T3: Collection window extends to the latest note, not the last array element', async () => {
+    // Construct a sequence whose LAST ELEMENT IS EARLIER THAN ITS MAXIMUM.
+    const unit: ContentUnit = {
+      id: 'test-window',
+      name: 'Test Window',
+      tier: 'Bootcamp',
+      category: 'Dynamics Gate',
+      bpm: 80, // period = 0.75s
+      // The latest note is at 1000ms, but the last element is at 500ms.
+      sequence: [
+        { targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false },
+        { targetTimeMs: 1000, drumType: 'kick', sticking: '', isAccent: false }, // Maximum
+        { targetTimeMs: 500, drumType: 'kick', sticking: '', isAccent: false }    // Last element
+      ],
+      passCriteria: {
+        timingWindowMs: 30,
+        timingAccuracyPercent: 90,
+        dynamicContrastDb: 0,
+        consecutiveBarsRequired: 1,
+      },
+      failureDiagnostics: []
+    };
+
+    const workerMock = {
+      postMessage: vi.fn(),
+      addEventListener: vi.fn((event, handler) => {
+        if (event === 'message') {
+          setTimeout(() => {
+            handler({
+              data: {
+                type: 'result',
+                offsets: new Float32Array([0]),
+                categories: new Int8Array([SCORING_CATEGORIES.GREEN]),
+                dynamicScores: new Int8Array([1]),
+                diagnosticRuleIds: new Uint8Array([0]),
+                struckZones: new Int8Array([38]),
+                numResults: 1,
+              }
+            } as any);
+          }, 0);
+        }
+      }),
+      removeEventListener: vi.fn(),
+    } as unknown as Worker;
+
+    const runner = new DrillRunner(workerMock);
+    
+    // spy is active in beforeEach
+    const sleepSpy = (DrillRunner.prototype as any)._sleepUntilAudioTime;
+    
+    await runner.run(unit);
+
+    // periodSec = 60 / 80 = 0.75
+    // COUNT_IN_BEATS = 4
+    // firstBeatSec is mocked to 1 in beforeEach
+    // drillStartSec = 1 + 4 * 0.75 = 4
+    // TAIL_MS = 400
+    // If correct: lastNoteMs = 1000 -> endSec = 4 + 1.4 = 5.4
+    // If buggy: lastNoteMs = 500 -> endSec = 4 + 0.9 = 4.9
+
+    expect(sleepSpy).toHaveBeenLastCalledWith(expect.anything(), 5.4);
+  });
+
   it('R-T2: gives up if AudioContext clock does not advance (fails fast)', async () => {
     const unit: ContentUnit = {
       id: 'test-fail-fast',

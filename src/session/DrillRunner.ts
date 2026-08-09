@@ -131,9 +131,7 @@ export class DrillRunner {
     })
     midiEngine.setDrillActive(true)
 
-    const lastNoteMs = unit.sequence.length
-      ? unit.sequence[unit.sequence.length - 1].targetTimeMs
-      : 0
+    const lastNoteMs = unit.sequence.reduce((max, n) => Math.max(max, n.targetTimeMs), 0)
     const endSec = drillStartSec + (lastNoteMs + TAIL_MS) / 1000
 
     // Publish the exact start so the UI (and tests) can align to it.
