@@ -44,6 +44,7 @@ export interface DrillResult {
   dynamicScores: Int8Array
   diagnosticRuleIds: Uint8Array
   struckZones: Int8Array
+  decouplingScore?: number
 }
 
 /** Emitted on `window` so both the UI and tests can observe real phase changes. */
@@ -188,8 +189,19 @@ export class DrillRunner {
 
   /** Sleep until an absolute AudioContext time, correcting for timer drift. */
   private async _sleepUntilAudioTime(ctx: AudioContext, targetSec: number): Promise<void> {
+    let lastAudioTime = ctx.currentTime;
+    let lastAdvanceTime = performance.now();
+
     for (;;) {
-      const remainingMs = (targetSec - ctx.currentTime) * 1000
+      const currentAudioTime = ctx.currentTime;
+      if (currentAudioTime > lastAudioTime) {
+        lastAudioTime = currentAudioTime;
+        lastAdvanceTime = performance.now();
+      } else if (performance.now() - lastAdvanceTime > 2000) {
+        throw new Error('AudioContext clock is not advancing. Audio may be locked or failed to start.');
+      }
+
+      const remainingMs = (targetSec - currentAudioTime) * 1000
       if (remainingMs <= 1 || this._abort) return
       // Sleep most of the way, then re-check; setTimeout alone drifts.
       await new Promise((r) => setTimeout(r, Math.min(remainingMs - 1, 50)))
@@ -210,6 +222,7 @@ export class DrillRunner {
       dynamicScores: new Int8Array(0),
       diagnosticRuleIds: new Uint8Array(0),
       struckZones: new Int8Array(0),
+      decouplingScore: undefined,
     }
   }
 
@@ -228,7 +241,12 @@ export class DrillRunner {
       const note = unit.sequence[i]
       targetBeats[i] = drillStartSec * 1000 + note.targetTimeMs
       const range =
-        note.velocityRange ?? (note.isAccent ? VELOCITY_RANGES.ACCENT : VELOCITY_RANGES.NORMAL)
+        note.velocityRange ??
+        (note.drumType === 'hihat-chick'
+          ? { min: 0, max: 127 }
+          : note.isAccent
+          ? VELOCITY_RANGES.ACCENT
+          : VELOCITY_RANGES.NORMAL)
       targetVelocityMin[i] = range.min
       targetVelocityMax[i] = range.max
       targetZones[i] = DRUM_TYPE_TO_MIDI[note.drumType]
@@ -297,6 +315,7 @@ export class DrillRunner {
           dynamicScores,
           diagnosticRuleIds,
           struckZones,
+          decouplingScore: msg.decouplingScore,
         })
       }
 

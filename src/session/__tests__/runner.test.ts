@@ -182,4 +182,99 @@ describe('DrillRunner Evaluator Dispatch', () => {
     // Headline should be "In the pocket."
     expect(result.diagnosis.headline).toBe('In the pocket.');
   });
+
+  it('R-T1: A correct chick performance produces no dynamics fault', async () => {
+    const unit: ContentUnit = {
+      id: 'hh-indep-1-test',
+      name: 'Test',
+      tier: 'Bootcamp',
+      category: 'Hi-Hat Independence',
+      bpm: 80,
+      sequence: [{ targetTimeMs: 0, drumType: 'hihat-chick', sticking: '', isAccent: false }],
+      passCriteria: {
+        timingWindowMs: 30,
+        timingAccuracyPercent: 90,
+        dynamicContrastDb: 0,
+        consecutiveBarsRequired: 1,
+      },
+      failureDiagnostics: []
+    };
+
+    const workerMock = {
+      postMessage: vi.fn((msg) => {
+        // Mock worker logic: if the target velocity range doesn't allow 100, fail it.
+        const targetMin = msg.targetVelocityMin[0];
+        const targetMax = msg.targetVelocityMax[0];
+        const hitVelocity = 100; // Simulated chick velocity
+        
+        let dynamicScore = 1; // 1 = ok
+        if (hitVelocity < targetMin) dynamicScore = -1; // too soft
+        if (hitVelocity > targetMax) dynamicScore = 2; // too loud
+
+        const resultHandler = (workerMock.addEventListener as any).mock.calls.find((c: any) => c[0] === 'message')[1];
+        setTimeout(() => {
+          resultHandler({
+            data: {
+              type: 'result',
+              offsets: new Float32Array([0]),
+              categories: new Int8Array([SCORING_CATEGORIES.GREEN]),
+              dynamicScores: new Int8Array([dynamicScore]),
+              diagnosticRuleIds: new Uint8Array([0]),
+              struckZones: new Int8Array([44]), // hihat chick
+              numResults: 1,
+            }
+          } as any);
+        }, 0);
+      }),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as Worker;
+
+    const runner = new DrillRunner(workerMock);
+    const result = await runner.run(unit);
+
+    expect(result.diagnosis.headline).not.toContain('dynamics are uneven');
+    expect(result.diagnosis.headline).not.toContain('hitting harder');
+    expect(result.passed).toBe(true);
+  });
+  
+  it('R-T2: gives up if AudioContext clock does not advance (fails fast)', async () => {
+    const unit: ContentUnit = {
+      id: 'test-fail-fast',
+      name: 'Test',
+      tier: 'Bootcamp',
+      category: 'Dynamics Gate',
+      bpm: 80,
+      sequence: [{ targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false }],
+      passCriteria: {
+        timingWindowMs: 30,
+        timingAccuracyPercent: 90,
+        dynamicContrastDb: 0,
+        consecutiveBarsRequired: 1,
+      },
+      failureDiagnostics: []
+    };
+
+    const workerMock = {} as Worker;
+    
+    const runner = new DrillRunner(workerMock);
+    
+    // Restore the spy to test the real _sleepUntilAudioTime logic
+    (DrillRunner.prototype as any)._sleepUntilAudioTime.mockRestore();
+
+    vi.useFakeTimers();
+    let errorCaught: Error | null = null;
+    
+    const runPromise = runner.run(unit).catch(e => { errorCaught = e; });
+    
+    // Fast-forward fake timers by >2000ms. performance.now() inside the loop will advance,
+    // but the mocked ctx.currentTime stays at 0.
+    await vi.runAllTimersAsync();
+    
+    await runPromise;
+    vi.useRealTimers();
+    
+    expect(errorCaught).toBeDefined();
+    expect(errorCaught!.message).toContain('clock is not advancing');
+  });
 });

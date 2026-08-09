@@ -5,6 +5,7 @@ import { RhythmGrid, type DrillSequence, type DrumType as GridDrumType } from '.
 import { GrooveCircle } from '../canvas/GrooveCircle'
 import { categoriseTiming } from '../../workers/timingBands'
 import { midiEngine, type HitEvent } from '../../audio/midi'
+import { audioEngine } from '../../audio/AudioEngine'
 import {
   DrillRunner,
   DRILL_PHASE_EVENT,
@@ -131,12 +132,20 @@ export function DrillSession({ unit, worker }: Props) {
     }
   }, [worker])
 
-  // The click that starts the drill is also the user gesture that unlocks audio.
   const start = async () => {
     setResult(null)
     setCountInBeat(0)
     setHardwareBlock(null)
     
+    // Unlock audio immediately from the gesture, before any async storage reads
+    // that might consume the transient user activation window.
+    const unlocked = await audioEngine.unlock()
+    if (!unlocked) {
+      setAudioLocked(true)
+      setPhase('idle')
+      return
+    }
+
     const profile = await profilesStore.load()
     const cap = checkHardwareCapability(unit, profile.noteMap, midiEngine)
     if (!cap.ok) {
@@ -245,6 +254,11 @@ export function DrillSession({ unit, worker }: Props) {
             <div class="result-stats" data-testid="result-accuracy">
               {result.accuracyPercent.toFixed(0)}% in the window · {result.numHits} hits recorded
             </div>
+            {unit.passCriteria.decouplingScoreThreshold !== undefined && result.decouplingScore !== undefined && (
+              <div class="result-stats result-decoupling" data-testid="result-decoupling">
+                Decoupling score: {result.decouplingScore.toFixed(2)} (target: ≤ {unit.passCriteria.decouplingScoreThreshold})
+              </div>
+            )}
             <button class="drill-start again" onClick={start} data-testid="drill-retry">
               Again
             </button>
