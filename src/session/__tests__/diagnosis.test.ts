@@ -33,6 +33,24 @@ describe('diagnose', () => {
     expect(result.headline).toBe("You're inconsistent.");
   });
 
+  it('R-T1.5: F-5 boundary test: exactly at the spread threshold (sigma 30ms, bias 0) does not diagnose inconsistent', () => {
+    const numResults = 20;
+    const categories = new Int8Array(numResults).fill(SCORING_CATEGORIES.YELLOW);
+    const rules = new Uint8Array(numResults).fill(DiagnosticRuleId.RUSHING);
+    const offsets = new Float32Array(numResults);
+    for (let i = 0; i < numResults; i++) {
+      offsets[i] = i % 2 === 0 ? 30 : -30; // stddev will be 30, mean 0
+    }
+    const unit = { ...dummyUnit, sequence: Array.from({length: numResults}, (_, i) => ({
+      targetTimeMs: i * 500, drumType: 'snare-head', sticking: 'R', isAccent: false
+    })) };
+
+    const result = diagnose(unit as any, categories, rules, offsets, numResults);
+    // Because it's exactly 30, it should NOT trigger the inconsistency check (which requires > 30),
+    // and thus it should fall back to the topRule which is RUSHING.
+    expect(result.headline).toMatch(/rushing/i);
+  });
+
   it('R-T2: diagnoses "rushing" for consistent directional bias (sigma 14ms, bias -35ms)', () => {
     const numResults = 20;
     const categories = new Int8Array(numResults).fill(SCORING_CATEGORIES.YELLOW);
@@ -132,6 +150,24 @@ describe('diagnose', () => {
 
       const result = diagnose(unit as any, categories, rules, offsets, numResults, struckZones);
       expect(result.headline).toBe("On beat 1 you hit the wrong drum zone.");
+    });
+
+    it('F-2: reports only the beats matching the named pair when multiple confusions exist', () => {
+      const numResults = 2;
+      const categories = new Int8Array([SCORING_CATEGORIES.RED, SCORING_CATEGORIES.RED]);
+      const rules = new Uint8Array([DiagnosticRuleId.ZONE_CONFUSION, DiagnosticRuleId.ZONE_CONFUSION]);
+      const offsets = new Float32Array([0, 0]);
+      // beat 1: expected snare-head, struck kick
+      // beat 3 (time 1000 at 120bpm = beat 3): expected hihat-chick, struck hihat-closed
+      const struckZones = new Int8Array([36, 42]); // kick, closed
+      const unit = { ...dummyUnit, sequence: [
+        { targetTimeMs: 0, drumType: 'snare-head', sticking: 'R', isAccent: false },
+        { targetTimeMs: 1000, drumType: 'hihat-chick', sticking: '', isAccent: false }
+      ] };
+
+      const result = diagnose(unit as any, categories, rules, offsets, numResults, struckZones);
+      // The first pair is snare-head -> kick. It should ONLY report beat 1.
+      expect(result.headline).toBe("On beat 1 you hit the kick instead of the head.");
     });
   });
 });

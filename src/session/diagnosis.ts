@@ -168,6 +168,20 @@ export function diagnose(
       }
 
       if (expectedNote !== -1 && struckNote !== -1) {
+        // Filter topBeats to only include those matching this specific pair
+        const pairBeats: number[] = [];
+        for (let i = 0; i < numResults; i++) {
+          if (diagnosticRuleIds[i] === DiagnosticRuleId.ZONE_CONFUSION) {
+            const e = DRUM_TYPE_TO_MIDI[unit.sequence[i]?.drumType] ?? -1;
+            const s = struckZones?.[i] ?? -1;
+            if (e === expectedNote && s === struckNote) {
+              const note = unit.sequence[i];
+              if (note) pairBeats.push(beatOf(unit, note.targetTimeMs));
+            }
+          }
+        }
+        topBeats = pairBeats;
+
         // R4: Keep the cross-stick guidance specifically for head-instead-of-rim
         if (expectedNote === DRUM_TYPE_TO_MIDI['snare-rim'] && struckNote === DRUM_TYPE_TO_MIDI['snare-head']) {
           headline = `On ${phraseBeats(topBeats)} you hit the head instead of the rim — soft isn't the same as cross-stick.`;

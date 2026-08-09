@@ -27,11 +27,11 @@ export const HiHatIndependenceDrill2: ContentUnit = {
   tier: 'Bootcamp',
   category: 'Hi-Hat Independence',
   bpm: 80,
-  sequence: [
+  sequence: ([
     ...generateHiHatSequence(80, 2),
     // Add snare on 2 and 4
     ...generateSnareBackbeat(80, 2)
-  ],
+  ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     timingWindowMs: 40,
     timingAccuracyPercent: 90,
@@ -48,7 +48,7 @@ export const HiHatIndependenceDrill3: ContentUnit = {
   tier: 'Bootcamp',
   category: 'Hi-Hat Independence',
   bpm: 80,
-  sequence: [
+  sequence: ([
     ...generateHiHatSequence(80, 2),
     // Syncopated snare (e.g., 2, and of 3, 4)
     { targetTimeMs: getMs(80, 1), drumType: 'snare-head', sticking: 'L', isAccent: true }, // beat 2
@@ -58,7 +58,7 @@ export const HiHatIndependenceDrill3: ContentUnit = {
     { targetTimeMs: getMs(80, 5), drumType: 'snare-head', sticking: 'L', isAccent: true },
     { targetTimeMs: getMs(80, 6.5), drumType: 'snare-head', sticking: 'L', isAccent: true },
     { targetTimeMs: getMs(80, 7), drumType: 'snare-head', sticking: 'L', isAccent: true },
-  ],
+  ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     timingWindowMs: 38,
     timingAccuracyPercent: 90,
