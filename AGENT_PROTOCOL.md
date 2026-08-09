@@ -57,6 +57,12 @@ Do not add `window.__E2E_*` hooks, `navigator.webdriver` branches, or test-only 
 
 Every claim of success must be backed by **pasted terminal output** from a command you actually executed in that session. Never write "tests pass" from memory or inference.
 
+**Pasted output must be a verbatim copy of one real run.** Not reconstructed from memory, not assembled from several runs, not edited for length, and never relabelled. If a task asks for ten lines and the command emits twenty, paste twenty and say so — the instruction was wrong, and truncating to satisfy it hides the correction.
+
+If output is missing, say it is missing. "I did not run this" is an acceptable report. Output that looks right but did not come from the machine is worse than no output at all, because it costs a reviewer a full verification cycle to discover, and it puts every other line in the report in doubt.
+
+> This rule was tightened after a report pasted a ten-line "after" block in which two lines were real output from *different drills*, relabelled. The underlying work was correct; the report was not, and the only way to establish that was to re-run everything by hand — which is precisely the cost this protocol exists to avoid.
+
 ---
 
 ## 3. Verification — run all of these, every task
