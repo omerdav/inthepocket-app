@@ -165,7 +165,7 @@ export function DrillSession({ unit, worker }: Props) {
       const msg = err instanceof Error ? err.message : String(err)
       if (msg.includes('Audio is locked')) {
         setAudioLocked(true)
-        setPhase('idle')
+        window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'idle', unitId: unit.id } }))
       } else {
         let detail = 'The drill could not complete because the browser audio engine stalled or failed to start. Please try again.'
         if (msg.includes('Metronome did not start')) {
@@ -187,8 +187,9 @@ export function DrillSession({ unit, worker }: Props) {
           dynamicScores: new Int8Array(0),
           diagnosticRuleIds: new Uint8Array(0),
           struckZones: new Int8Array(0),
+          error: 'audio-stall',
         })
-        setPhase('complete')
+        window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'complete', unitId: unit.id } }))
       }
     }
   }
@@ -271,9 +272,10 @@ export function DrillSession({ unit, worker }: Props) {
             class={`drill-result ${result.passed ? 'passed' : 'failed'}`}
             data-testid="drill-result"
             data-passed={String(result.passed)}
+            data-error={result.error || ''}
           >
             <div class="result-verdict">
-              {result.passed ? 'Passed' : (result.diagnosis.headline === 'Audio System Interrupted' ? 'Interrupted' : 'Not yet')}
+              {result.passed ? 'Passed' : (result.error === 'audio-stall' ? 'Interrupted' : 'Not yet')}
             </div>
             <p class="result-headline" data-testid="result-diagnosis">
               {result.diagnosis.headline}

@@ -71,6 +71,13 @@ test.describe('T-005 Drill Audit', () => {
               if (d.phase === 'playing' && typeof d.startPerfMs === 'number') {
                 window.removeEventListener('itp-drill-phase', handler);
                 resolve(d.startPerfMs);
+              } else if (d.phase === 'idle' || d.phase === 'complete') {
+                // The drill ended without ever reaching 'playing' — an engine
+                // stall during count-in. Settle so the harness stops waiting
+                // and the assertions below can report what actually happened,
+                // instead of blocking here until the 120s test timeout.
+                window.removeEventListener('itp-drill-phase', handler);
+                resolve(-1);
               }
             };
             window.addEventListener('itp-drill-phase', handler);
@@ -82,6 +89,11 @@ test.describe('T-005 Drill Audit', () => {
         await page.evaluate(async ({ sequence, drumTypeToMidi, bpm, earlyMs }) => {
           const start: number = await (window as any).__drillStart;
           const vd = (window as any).__virtualDrummer;
+
+          // Sentinel from the listener above: the drill never started. There is
+          // nothing to play, and the assertions after this evaluate will catch
+          // the stall via the data-error guard.
+          if (start === -1) return;
 
           for (const note of sequence) {
             const sixteenthMs = 60000 / bpm / 4;
@@ -135,7 +147,10 @@ test.describe('T-005 Drill Audit', () => {
           console.log(`[RUSHING RUN for ${drillId}]: Passed=${passed}, Diagnosis="${diagnosis}"`);
         }
 
-        expect(diagnosis, `Drill must not stall with an engine error`).not.toContain('Audio System Interrupted');
+        // Structural, not prose: DrillResult carries an `error` field surfaced as
+        // data-error, so rewording the headline cannot silently disarm this guard.
+        const errorAttr = await resultEl.getAttribute('data-error');
+        expect(errorAttr, `${label} run for ${drillId} did not run — the engine stalled`).not.toBe('audio-stall');
         
         expect(passed, `${label} run for ${drillId} (earlyMs=${earlyMs}, window=${drill.passCriteria.timingWindowMs})`).toBe(
           expectPass ? 'true' : 'false'

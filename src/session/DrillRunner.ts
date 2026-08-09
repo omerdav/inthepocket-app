@@ -45,6 +45,7 @@ export interface DrillResult {
   diagnosticRuleIds: Uint8Array
   struckZones: Int8Array
   decouplingScore?: number
+  error?: 'audio-stall' | 'cancelled'
 }
 
 /** Emitted on `window` so both the UI and tests can observe real phase changes. */
@@ -221,6 +222,7 @@ export class DrillRunner {
       diagnosticRuleIds: new Uint8Array(0),
       struckZones: new Int8Array(0),
       decouplingScore: undefined,
+      error: 'cancelled',
     }
   }
 

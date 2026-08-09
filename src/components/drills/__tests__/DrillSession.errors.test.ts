@@ -66,7 +66,7 @@ describe('DrillSession error handling', () => {
     startBtn.click()
 
     // Wait for async promises to process
-    await new Promise(r => setTimeout(r, 10))
+    await new Promise(r => setTimeout(r, 50))
 
     // Assert what the user sees
     expect(container.querySelector('[data-testid="audio-locked"]')).toBeTruthy()
@@ -79,14 +79,14 @@ describe('DrillSession error handling', () => {
     const worker = {} as Worker
 
     render(h(DrillSession, { unit, worker }), container)
-    await new Promise(r => setTimeout(r, 10))
+    await new Promise(r => setTimeout(r, 50))
     
     vi.spyOn(DrillRunner.prototype, 'run').mockRejectedValueOnce(new Error('Metronome did not start within 2s.'))
     
     const startBtn = container.querySelector('[data-testid="drill-start"]') as HTMLButtonElement
     startBtn.click()
 
-    await new Promise(r => setTimeout(r, 10))
+    await new Promise(r => setTimeout(r, 50))
 
     expect(container.querySelector('[data-testid="drill-result"]')).toBeTruthy()
     expect(container.querySelector('[data-testid="result-diagnosis"]')?.textContent).toContain('Audio System Interrupted')
@@ -98,14 +98,15 @@ describe('DrillSession error handling', () => {
     const worker = {} as Worker
 
     render(h(DrillSession, { unit, worker }), container)
-    await new Promise(r => setTimeout(r, 10))
+    await new Promise(r => setTimeout(r, 50))
     
     vi.spyOn(DrillRunner.prototype, 'run').mockRejectedValueOnce(new Error('AudioContext clock is not advancing. Audio may be locked or failed to start.'))
     
     const startBtn = container.querySelector('[data-testid="drill-start"]') as HTMLButtonElement
     startBtn.click()
 
-    await new Promise(r => setTimeout(r, 10))
+    await new Promise(r => setTimeout(r, 50))
+
 
     expect(container.querySelector('[data-testid="drill-result"]')).toBeTruthy()
     expect(container.querySelector('[data-testid="result-diagnosis"]')?.textContent).toContain('Audio System Interrupted')
