@@ -188,7 +188,7 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
         dynamicScores[j] = passDynamics ? 1 : 0;
 
         // Diagnostics
-        diagnosticRuleIds[j] = DiagnosticEngine.evaluate(minDelta, hitV, targetMinV, targetMaxV, hitZ, targetZ);
+        diagnosticRuleIds[j] = DiagnosticEngine.evaluate(minDelta, hitV, targetMinV, targetMaxV, hitZ, targetZ, greenWindow);
         
         struckZones[j] = hitZ;
 

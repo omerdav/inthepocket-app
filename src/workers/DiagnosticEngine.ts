@@ -11,7 +11,8 @@ export class DiagnosticEngine {
     targetVelocityMin: number,
     targetVelocityMax: number,
     hitZone: number,
-    targetZone: number
+    targetZone: number,
+    greenWindow: number
   ): DiagnosticRuleId {
     
     // 1. Zone Confusion Priority
@@ -28,11 +29,16 @@ export class DiagnosticEngine {
     }
 
     // 3. Timing Priority
+    // Coaching threshold is derived from the drill's green window.
+    // A ratio of 0.6 lands the Introduction band (±50ms) exactly on the legacy 30ms behavior.
+    const COACHING_THRESHOLD_RATIO = 0.6;
+    const thresholdMs = greenWindow * COACHING_THRESHOLD_RATIO;
+
     // If it's a MISS or RED, it's a severe timing issue
-    if (offsetMs < -30) {
+    if (offsetMs < -thresholdMs) {
       return DiagnosticRuleId.RUSHING;
     }
-    if (offsetMs > 30) {
+    if (offsetMs > thresholdMs) {
       return DiagnosticRuleId.DRAGGING;
     }
 
