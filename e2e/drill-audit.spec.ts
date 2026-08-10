@@ -20,7 +20,7 @@ type EarlyKind = 'perfect' | 'acceptable' | 'rushing';
 /** Derived early offset in ms. Positive = early. Perfect is on the grid. */
 function derivedEarlyMs(timingWindowMs: number, kind: EarlyKind): number {
   if (kind === 'perfect') return 0;
-  if (kind === 'acceptable') return timingWindowMs - CLEARANCE_MS;
+  if (kind === 'acceptable') return timingWindowMs * 0.5;
   return timingWindowMs + CLEARANCE_MS;
 }
 
