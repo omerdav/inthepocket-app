@@ -43,38 +43,136 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
     // Let's cap matching to Math.max(150, greenWindow * 4) to give plenty of room for RED.
     let maxDistance = Math.max(150, greenWindow * 4);
 
+    const cols = numHits + 1;
+    const dp = new Float32Array((numTargets + 1) * cols);
+    const choice = new Uint8Array((numTargets + 1) * cols);
+
+    // Cost of leaving a target completely unmatched. 
+    // In L1 distance terms, this is equivalent to 10,000ms of timing error.
+    // It must be massively higher than any possible timing error (maxDistance is ~150-200ms) 
+    // so the DP only drops a target if no hit is available, prioritizing ANY match over missing.
+    const MISS_TARGET_PENALTY = 10000;
+
+    // Cost of matching a hit that landed on the wrong instrument zone.
+    // Set to 500ms equivalent—higher than maxDistance. This ensures the DP never steals 
+    // a wrong-zone hit just to save a few milliseconds of timing error. It must be less 
+    // than MISS_TARGET_PENALTY so that hitting the rim instead of the snare still registers 
+    // as a hit (emitting ZONE_CONFUSION) rather than missing entirely.
+    const ZONE_MISMATCH_PENALTY = 500;
+
+    // Base cases
+    dp[0] = 0;
+    for (let i = 1; i <= numTargets; i++) {
+      dp[i * cols + 0] = dp[(i - 1) * cols + 0] + MISS_TARGET_PENALTY;
+      choice[i * cols + 0] = 2; // MISS target
+    }
+    for (let j = 1; j <= numHits; j++) {
+      dp[0 * cols + j] = dp[0 * cols + (j - 1)]; // Skip hit
+      choice[0 * cols + j] = 3; // SKIP hit
+    }
+
+    for (let i = 1; i <= numTargets; i++) {
+      const targetTime = targetBeats[i - 1];
+      const targetZ = targetZones[i - 1];
+
+      for (let j = 1; j <= numHits; j++) {
+        const hitTime = hitTimestamps[j - 1];
+        const hitZ = hitZones[j - 1];
+
+        const costMiss = dp[(i - 1) * cols + j] + MISS_TARGET_PENALTY;
+        const costSkip = dp[i * cols + (j - 1)];
+
+        let minCost = costMiss;
+        let bestChoice = 2;
+
+        if (costSkip < minCost) {
+          minCost = costSkip;
+          bestChoice = 3;
+        }
+
+        const delta = hitTime - targetTime;
+        const absDelta = Math.abs(delta);
+        
+        if (absDelta <= maxDistance) {
+          const zoneMatches = hitZ === targetZ;
+          const matchCost = absDelta + (zoneMatches ? 0 : ZONE_MISMATCH_PENALTY);
+          const costMatch = dp[(i - 1) * cols + (j - 1)] + matchCost;
+          
+          if (costMatch < minCost) {
+            minCost = costMatch;
+            bestChoice = 1;
+          }
+
+          // Damerau-Levenshtein transposition for simultaneous targets
+          if (i > 1 && j > 1 && targetBeats[i - 1] === targetBeats[i - 2]) {
+            const prevTargetTime = targetBeats[i - 2];
+            const prevTargetZ = targetZones[i - 2];
+            const prevHitTime = hitTimestamps[j - 2];
+            const prevHitZ = hitZones[j - 2];
+
+            const delta1 = prevHitTime - targetTime;
+            const delta2 = hitTime - prevTargetTime;
+            
+            if (Math.abs(delta1) <= maxDistance && Math.abs(delta2) <= maxDistance) {
+              const zm1 = prevHitZ === targetZ;
+              const zm2 = hitZ === prevTargetZ;
+              const transCost = Math.abs(delta1) + (zm1 ? 0 : ZONE_MISMATCH_PENALTY) + Math.abs(delta2) + (zm2 ? 0 : ZONE_MISMATCH_PENALTY);
+              
+              const costTrans = dp[(i - 2) * cols + (j - 2)] + transCost;
+              if (costTrans < minCost) {
+                minCost = costTrans;
+                bestChoice = 4;
+              }
+            }
+          }
+        }
+
+        dp[i * cols + j] = minCost;
+        choice[i * cols + j] = bestChoice;
+      }
+    }
+
+    const matchedHits = new Int32Array(numTargets).fill(-1);
+    let currI = numTargets;
+    let currJ = numHits;
+    
+    while (currI > 0 || currJ > 0) {
+      if (currI > 0 && currJ > 0) {
+        const c = choice[currI * cols + currJ];
+        if (c === 1) { // Match
+          matchedHits[currI - 1] = currJ - 1;
+          currI--;
+          currJ--;
+        } else if (c === 4) { // Transposition
+          matchedHits[currI - 1] = currJ - 2;
+          matchedHits[currI - 2] = currJ - 1;
+          currI -= 2;
+          currJ -= 2;
+        } else if (c === 2) { // Miss target
+          currI--;
+        } else { // Skip hit
+          currJ--;
+        }
+      } else if (currI > 0) {
+        currI--;
+      } else {
+        currJ--;
+      }
+    }
+
     for (let j = 0; j < numTargets; j++) {
       const targetTime = targetBeats[j];
       const targetMinV = targetVelocityMin[j];
       const targetMaxV = targetVelocityMax[j];
       const targetZ = targetZones[j];
 
-      let minDelta = Infinity;
-      let closestHitIndex = -1;
-      let bestZoneMatches = false;
-
-      // Find the closest unused hit
-      for (let i = 0; i < numHits; i++) {
-        if (usedHits[i]) continue;
-
-        const hitTime = hitTimestamps[i];
-        const hitZ = hitZones[i];
-        const zoneMatches = hitZ === targetZ;
-        const delta = hitTime - targetTime;
-        const absDelta = Math.abs(delta);
-        const absMinDelta = Math.abs(minDelta);
-        
-        // Prefer closer hit, OR same distance but matching zone
-        if (absDelta < absMinDelta || (absDelta === absMinDelta && zoneMatches && !bestZoneMatches)) {
-          minDelta = delta;
-          closestHitIndex = i;
-          bestZoneMatches = zoneMatches;
-        }
-      }
+      const closestHitIndex = matchedHits[j];
 
       // If we found a hit within the maximum matching distance
-      if (closestHitIndex !== -1 && Math.abs(minDelta) <= maxDistance) {
+      if (closestHitIndex !== -1) {
         usedHits[closestHitIndex] = 1; // Mark hit as consumed
+        const hitTime = hitTimestamps[closestHitIndex];
+        const minDelta = hitTime - targetTime;
         offsets[j] = minDelta;
 
         const hitV = hitVelocities[closestHitIndex];

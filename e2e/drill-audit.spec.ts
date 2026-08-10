@@ -139,12 +139,20 @@ test.describe('T-005 Drill Audit', () => {
           decoupling = (await page.getByTestId('result-decoupling').textContent({ timeout: 1000 }))?.trim() ?? '';
         } catch (e) {}
 
+        const numTargets = drill.sequence.length;
+        let numHits = '?';
+        try {
+          const statsText = (await page.getByTestId('result-accuracy').textContent({ timeout: 1000 })) || '';
+          const match = statsText.match(/(\d+)\s+hits recorded/);
+          if (match) numHits = match[1];
+        } catch (e) {}
+
         if (kind === 'perfect') {
-          console.log(`[PERFECT RUN for ${drillId}]: Passed=${passed}, Diagnosis="${diagnosis}", Decoupling=${decoupling}`);
+          console.log(`[PERFECT RUN for ${drillId}]: Passed=${passed}, Hits=${numHits}/${numTargets}, Diagnosis="${diagnosis}", Decoupling=${decoupling}`);
         } else if (kind === 'acceptable') {
-          console.log(`[ACCEPTABLE RUN for ${drillId}]: Passed=${passed}, Diagnosis="${diagnosis}", Decoupling=${decoupling}`);
+          console.log(`[ACCEPTABLE RUN for ${drillId}]: Passed=${passed}, Hits=${numHits}/${numTargets}, Diagnosis="${diagnosis}", Decoupling=${decoupling}`);
         } else {
-          console.log(`[RUSHING RUN for ${drillId}]: Passed=${passed}, Diagnosis="${diagnosis}"`);
+          console.log(`[RUSHING RUN for ${drillId}]: Passed=${passed}, Hits=${numHits}/${numTargets}, Diagnosis="${diagnosis}"`);
         }
 
         // Structural, not prose: DrillResult carries an `error` field surfaced as

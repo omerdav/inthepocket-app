@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ScoringWorkerCalculateMessage } from '../scoring.types';
-import { DiagnosticRuleId } from '../scoring.types';
+import { DiagnosticRuleId, SCORING_CATEGORIES } from '../scoring.types';
 
 // Mock self for the worker
 const postMessageMock = vi.fn();
@@ -190,6 +190,111 @@ describe('ScoringWorker Dynamics & Diagnostics', () => {
     expect(result.categories[1]).toBe(3);
     // MISS should carry sentinel -1
     expect(result.struckZones[1]).toBe(-1);
+  });
+  describe('R1: Cascade Defects', () => {
+    const baseTargets = new Float64Array([1000, 1100, 1200, 1300, 1400]);
+    const baseZones = new Int8Array([38, 38, 38, 38, 38]);
+
+    it('Missing hit causes cascade of late offsets', () => {
+      // Perfect hits except missing the second one (at 1100)
+      const hits = new Float64Array([1000, 1200, 1300, 1400]);
+      
+      const msg: ScoringWorkerCalculateMessage = {
+        type: 'calculate',
+        numTargets: 5,
+        numHits: 4,
+        targetBeats: baseTargets,
+        targetVelocityMin: new Float32Array([1, 1, 1, 1, 1]),
+        targetVelocityMax: new Float32Array([127, 127, 127, 127, 127]),
+        targetZones: baseZones,
+        hitTimestamps: hits,
+        hitVelocities: new Float32Array([100, 100, 100, 100]),
+        hitZones: new Int8Array([38, 38, 38, 38]),
+        timingWindowMs: 30
+      };
+
+      self.onmessage!({ data: msg } as any);
+      const result = postMessageMock.mock.calls[0][0];
+      postMessageMock.mockClear();
+
+      // The damage must stay local: exactly one MISS, neighbours untouched.
+      //
+      // Assert the CATEGORY, not just the offset. An unmatched target is
+      // recorded with offsets[j] = 0 — the same value a perfectly placed hit
+      // produces — so an offset assertion alone cannot tell "missed" from
+      // "played perfectly", and would still pass if the miss landed on the
+      // wrong note.
+      expect(result.categories[1]).toBe(SCORING_CATEGORIES.MISS);
+      expect(result.struckZones[1]).toBe(-1);
+
+      // Every other target keeps the result it had in a clean run. This is the
+      // property that greedy broke: it shifted T1→1200, T2→1300, T3→1400 and
+      // reported the whole drill as mistimed.
+      for (const j of [0, 2, 3, 4]) {
+        expect(result.categories[j], `target ${j} should be unaffected`).toBe(SCORING_CATEGORIES.GREEN);
+        expect(result.offsets[j], `target ${j} offset`).toBe(0);
+      }
+    });
+
+    it('Extra hit causes cascade of early offsets', () => {
+      // A genuinely clean run (perfect timing) with one extra hit inserted at 1060.
+      const hits = new Float64Array([1000, 1060, 1100, 1200, 1300, 1400]);
+      
+      const msg: ScoringWorkerCalculateMessage = {
+        type: 'calculate',
+        numTargets: 5,
+        numHits: 6,
+        targetBeats: baseTargets,
+        targetVelocityMin: new Float32Array([1, 1, 1, 1, 1]),
+        targetVelocityMax: new Float32Array([127, 127, 127, 127, 127]),
+        targetZones: baseZones,
+        hitTimestamps: hits,
+        hitVelocities: new Float32Array([100, 100, 100, 100, 100, 100]),
+        hitZones: new Int8Array([38, 38, 38, 38, 38, 38]),
+        timingWindowMs: 30
+      };
+
+      self.onmessage!({ data: msg } as any);
+      const result = postMessageMock.mock.calls[0][0];
+      postMessageMock.mockClear();
+
+      // DP ignores the extra hit because the real hits perfectly match the targets.
+      // Every target should still score GREEN at offset 0.
+      for (let j = 0; j < 5; j++) {
+        expect(result.categories[j], `target ${j} should be unaffected`).toBe(SCORING_CATEGORIES.GREEN);
+        expect(result.offsets[j], `target ${j} offset`).toBe(0);
+      }
+    });
+
+    it('Badly late hit causes cascade', () => {
+      const hits = new Float64Array([1000, 1200, 1210, 1300, 1400]);
+      
+      const msg: ScoringWorkerCalculateMessage = {
+        type: 'calculate',
+        numTargets: 5,
+        numHits: 5,
+        targetBeats: baseTargets,
+        targetVelocityMin: new Float32Array([1, 1, 1, 1, 1]),
+        targetVelocityMax: new Float32Array([127, 127, 127, 127, 127]),
+        targetZones: baseZones,
+        hitTimestamps: hits,
+        hitVelocities: new Float32Array([100, 100, 100, 100, 100]),
+        hitZones: new Int8Array([38, 38, 38, 38, 38]),
+        timingWindowMs: 30
+      };
+
+      self.onmessage!({ data: msg } as any);
+      const result = postMessageMock.mock.calls[0][0];
+      postMessageMock.mockClear();
+
+      expect(result.offsets[0]).toBe(0); // T0(1000) -> H0(1000)
+      
+      // DP matches T1(1100) to 1200 (offset = +100).
+      // DP matches T2(1200) to 1210 (offset = +10).
+      // Order is perfectly preserved!
+      expect(result.offsets[1]).toBe(100); 
+      expect(result.offsets[2]).toBe(10);
+    });
   });
 
 });
