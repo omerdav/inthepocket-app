@@ -200,3 +200,60 @@ test('R2: the quick menu is reachable after an audio stall during count-in', asy
   const menu = page.getByTestId('quick-menu-panel');
   await expect(menu).toBeVisible();
 });
+
+test('R2: blind mode fades out after threshold and snaps back on bad hit', async ({ page }) => {
+  test.setTimeout(30000);
+  
+  await page.evaluate(() => {
+    if ((window as any).setBlindModeParams) {
+      (window as any).setBlindModeParams(true, 4);
+    }
+    
+    (window as any).__drillStart = new Promise<number>((resolve) => {
+      window.addEventListener('itp-drill-phase', (e: Event) => {
+        const d = (e as CustomEvent).detail;
+        if (d.phase === 'playing' && typeof d.startPerfMs === 'number') resolve(d.startPerfMs);
+      });
+    });
+  });
+
+  await page.getByTestId('drill-start').click();
+  await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
+
+  await page.evaluate(async () => {
+    const start: number = await (window as any).__drillStart;
+    const vd = (window as any).__virtualDrummer;
+    const spacing = 375;
+    
+    // Feed 12 perfect hits
+    for (let i = 0; i < 12; i++) {
+      const targetPerfMs = start + i * spacing;
+      const waitFor = targetPerfMs - performance.now() - 5;
+      if (waitFor > 0) await new Promise((r) => setTimeout(r, waitFor));
+      vd.hit(38, 100, targetPerfMs);
+    }
+    
+    // Wait a couple frames to ensure opacity is updated after hit 12
+    await new Promise(r => setTimeout(r, 50));
+    
+    // Store opacity after 12 perfect hits
+    (window as any).__E2E_OPACITY_BEFORE_BAD_HIT = (window as any).__E2E_LAST_OPACITY__;
+    
+    // Make the 13th hit late by directly simulating it via the visualizer hook
+    // to bypass Playwright/Browser IPC timing drift and VirtualDrummer delays
+    if (typeof (window as any).__E2E_SIMULATE_HIT__ === 'function') {
+      (window as any).__E2E_SIMULATE_HIT__('late', performance.now());
+    } else {
+      console.warn("E2E_SIMULATE_HIT not found");
+    }
+    
+    // Wait for the hit to be processed and rendered
+    await new Promise(r => setTimeout(r, 100));
+  });
+
+  const opacityBefore = await page.evaluate(() => (window as any).__E2E_OPACITY_BEFORE_BAD_HIT);
+  expect(opacityBefore).toBeLessThan(0.05);
+
+  const opacity = await page.evaluate(() => (window as any).__E2E_LAST_OPACITY__);
+  expect(opacity).toBeGreaterThan(0.9);
+});
