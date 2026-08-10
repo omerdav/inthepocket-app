@@ -1,7 +1,7 @@
 import type { ContentUnit } from '../types';
-import { generateSequence } from '../utils';
+import { generateSequence, getMs } from '../utils';
 import { TOLERANCE_BANDS } from '../toleranceBands';
-import { DiagnosticRuleId, SCORING_CATEGORIES } from '../../workers/scoring.types';
+import { DiagnosticRuleId, SCORING_CATEGORIES, DYNAMIC_SCORES } from '../../workers/scoring.types';
 
 // Drill 1: Even single strokes on snare head only.
 export const DynamicsGateDrill1: ContentUnit = {
@@ -95,9 +95,7 @@ export const DynamicsGateDrill5: ContentUnit = {
   failureDiagnostics: [],
 };
 
-function getMs(bpm: number, beats: number): number {
-  return beats * (60000 / bpm);
-}
+
 
 /**
  * Validates a drill session run against strict logical AND gating.
@@ -115,7 +113,7 @@ export function evaluateDrillPass(
   let totalValid = 0;
   for (let i = 0; i < timingScores.length; i++) {
     const isTimingValid = timingScores[i] === SCORING_CATEGORIES.GREEN;
-    const isDynamicValid = dynamicScores[i] === 1; // PASS
+    const isDynamicValid = dynamicScores[i] === DYNAMIC_SCORES.PASS;
     const isZoneValid = diagnosticRuleIds[i] !== DiagnosticRuleId.ZONE_CONFUSION;
 
     // Strict Logical AND for every note

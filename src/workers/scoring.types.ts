@@ -7,6 +7,13 @@ export const SCORING_CATEGORIES = {
 
 export type ScoringCategory = typeof SCORING_CATEGORIES[keyof typeof SCORING_CATEGORIES];
 
+export const DYNAMIC_SCORES = {
+  FAIL: 0,
+  PASS: 1,
+} as const;
+
+export type DynamicScore = typeof DYNAMIC_SCORES[keyof typeof DYNAMIC_SCORES];
+
 /**
  * A const object rather than an `enum`: the project sets `erasableSyntaxOnly`,
  * under which `enum` is not permitted (it emits runtime code). Usage sites are

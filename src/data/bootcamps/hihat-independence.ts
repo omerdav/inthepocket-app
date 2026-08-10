@@ -1,6 +1,7 @@
 import type { ContentUnit, DrillNote } from '../types';
 import { TOLERANCE_BANDS } from '../toleranceBands';
 import { SCORING_CATEGORIES } from '../../workers/scoring.types';
+import { getMs } from '../utils';
 
 /**
  * Hi-Hat Independence Bootcamp
@@ -126,9 +127,7 @@ export const HiHatIndependenceDrill5: ContentUnit = {
 
 // -- Helpers --
 
-function getMs(bpm: number, beats: number): number {
-  return beats * (60000 / bpm);
-}
+
 
 function generateHiHatSequence(bpm: number, bars: number): DrillNote[] {
   const seq: DrillNote[] = [];

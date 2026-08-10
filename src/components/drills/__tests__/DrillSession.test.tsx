@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { h, render } from 'preact'
+import { render } from 'preact'
 import { DrillSession } from '../DrillSession'
 import { audioEngine } from '../../../audio/AudioEngine'
 import { profilesStore } from '../../../store'
@@ -57,7 +57,7 @@ describe('DrillSession', () => {
     const unit = { id: 'test', bpm: 80, sequence: [], passCriteria: {} } as any
     const worker = {} as Worker
 
-    render(h(DrillSession, { unit, worker }), container)
+    render(<DrillSession unit={unit} worker={worker} />, container)
     
     // Find and click start
     const startBtn = container.querySelector('[data-testid="drill-start"]') as HTMLButtonElement

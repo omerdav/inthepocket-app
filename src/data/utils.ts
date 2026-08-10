@@ -108,3 +108,7 @@ export function generateSequence(
 
   return sequence;
 }
+
+export function getMs(bpm: number, beats: number): number {
+  return beats * (60000 / bpm);
+}

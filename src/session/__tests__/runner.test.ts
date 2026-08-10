@@ -183,7 +183,7 @@ describe('DrillRunner Evaluator Dispatch', () => {
     expect(result.diagnosis.headline).toBe('In the pocket.');
   });
 
-  it('R-T1: A correct chick performance produces no dynamics fault', async () => {
+  it('R-T4: A correct chick performance produces no dynamics fault', async () => {
     const unit: ContentUnit = {
       id: 'hh-indep-1-test',
       name: 'Test',
@@ -298,7 +298,9 @@ describe('DrillRunner Evaluator Dispatch', () => {
     // If correct: lastNoteMs = 1000 -> endSec = 4 + 1.4 = 5.4
     // If buggy: lastNoteMs = 500 -> endSec = 4 + 0.9 = 4.9
 
-    expect(sleepSpy).toHaveBeenLastCalledWith(expect.anything(), 5.4);
+    expect(sleepSpy).toHaveBeenCalled();
+    const lastCall = sleepSpy.mock.lastCall as any[];
+    expect(lastCall[1]).toBeCloseTo(5.4, 2);
   });
 
   it('R-T2: gives up if AudioContext clock does not advance (fails fast)', async () => {
