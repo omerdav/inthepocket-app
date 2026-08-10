@@ -159,6 +159,16 @@ test.describe('T-005 Drill Audit', () => {
         // data-error, so rewording the headline cannot silently disarm this guard.
         const errorAttr = await resultEl.getAttribute('data-error');
         expect(errorAttr, `${label} run for ${drillId} did not run — the engine stalled`).not.toBe('audio-stall');
+
+        // T-023 R4. The harness plays each drill's sequence exactly once, so the
+        // number of recorded hits must equal the number of notes. This is the
+        // guard that keeps the pedal from re-entering the hit stream three times
+        // per chick: hi-hat drills used to report 24/8, 28/12 and 34/18, and the
+        // count is rendered to the drummer as "N hits recorded".
+        expect(
+          numHits,
+          `${label} run for ${drillId} recorded ${numHits} hits for ${numTargets} notes`
+        ).toBe(String(numTargets));
         
         expect(passed, `${label} run for ${drillId} (earlyMs=${earlyMs}, window=${drill.passCriteria.timingWindowMs})`).toBe(
           expectPass ? 'true' : 'false'

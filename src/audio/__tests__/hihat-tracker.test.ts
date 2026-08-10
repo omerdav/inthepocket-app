@@ -53,4 +53,25 @@ describe('HiHatStateTracker CC#4 Hysteresis & Filtering', () => {
     expect(onEvent).toHaveBeenNthCalledWith(1, 'hihat-closed', 10, 140);
     expect(onEvent).toHaveBeenNthCalledWith(2, 'hihat-chick', expect.any(Number), 140);
   });
+
+  it('R1: one open->close cycle records EVERY emitted event', () => {
+    const onEvent = vi.fn();
+    const tracker = new HiHatStateTracker({ onEvent });
+    tracker.calibrate(0, 127);
+
+    // Initial state is partial. 
+    // Pedal lifted (0) -> pedal pressed (127) within chick window.
+    tracker.processCC(0, 100); // 100ms -> lift
+    tracker.processCC(127, 150); // 150ms -> press
+
+    console.log("Emitted events:");
+    onEvent.mock.calls.forEach((call, i) => {
+      console.log(`Event ${i + 1}: ${call[0]}`);
+    });
+
+    expect(onEvent).toHaveBeenCalledTimes(3);
+    expect(onEvent).toHaveBeenNthCalledWith(1, 'hihat-open', 0, 100);
+    expect(onEvent).toHaveBeenNthCalledWith(2, 'hihat-closed', 127, 150);
+    expect(onEvent).toHaveBeenNthCalledWith(3, 'hihat-chick', expect.any(Number), 150);
+  });
 });

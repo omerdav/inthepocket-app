@@ -240,12 +240,9 @@ export class MidiEngine {
 
     this._hiHatTracker = new HiHatStateTracker({
       onEvent: (eventType, velocity, timestamp) => {
-        // Widen to number: the initialiser would otherwise pin the literal 44.
-        let note: number = MIDI_NOTE.HI_HAT_CHICK;
-        if (eventType === 'hihat-open') note = MIDI_NOTE.HI_HAT_OPEN;
-        if (eventType === 'hihat-closed') note = MIDI_NOTE.HI_HAT_CLOSED;
-        
-        this._dispatchHit(note, velocity, timestamp);
+        if (eventType === 'hihat-chick') {
+          this._dispatchHit(MIDI_NOTE.HI_HAT_CHICK, velocity, timestamp);
+        }
       }
     });
 
