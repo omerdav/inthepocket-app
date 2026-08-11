@@ -197,3 +197,47 @@ The simulation suite plays drills as modelled drummers on modelled hardware and 
 **You may only act on case 1**, and only when the task spec says so. For 2 and 3, report the finding with evidence and stop.
 
 When fixing case 1, the fix must address the **cause**, not the symptom. Example: a drummer with scattered timing being told they are "rushing" is not fixed by changing the message — it is fixed by checking variance before consulting per-hit rules. Ask what the drummer would do with the feedback; if the answer is "the wrong thing", you have not fixed it.
+
+---
+
+## 9. Current state and standing hazards
+
+**Maintained by the owner. Read this before every task — it replaces the context that used to be pasted into each handoff.**
+
+### Baselines
+
+A task is not green unless it matches or beats these:
+
+| | |
+|---|---|
+| `npm run build` | clean (`tsc -b && vite build`) |
+| `npm test` | **135 passing** |
+| `npm run test:e2e` | **80 passing** (product project) |
+| drill audit | **30 run lines**, 31 tests including the boundary guard |
+
+`npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of those 80 tests. Run both, paste both.
+
+### The audit is the guard
+
+The 30 drill-audit lines assert a verdict per drill per run type, and none of them depend on live visual feedback. **If an audit row moves and your change did not touch scoring, stop and report.** Something has leaked into the grade, which is worse than whatever you were fixing.
+
+### Known intermittents — report as observed, do not fix
+
+- **P-1** — the audio clock stalls under load. Shows as `"Audio System Interrupted"` on the results screen.
+- **P-5** — the Groove Circle live-hit test returns an undefined colour. Two hypotheses eliminated; cause unknown. Lives in `GrooveCircle` / `DrillSession`, so if you are working there, read the register entry before attributing a failure to your change.
+
+If either fires, say so and move on. Do not chase them, and do not let them stop you reporting your own result honestly.
+
+### Invariants — each is a fix for a real defect, do not disturb
+
+- **`DrillSession.start()` unlocks audio before any async storage read** (T-014). Awaiting IndexedDB first consumed the transient user activation and left every drummer with a silent, frozen count-in.
+- **The error path dispatches `DRILL_PHASE_EVENT`** rather than setting phase locally (T-021). Setting local state strands `isDrillPlaying` true and suppresses the drummer's quick menu for the rest of the session.
+- **`DrillResult.error`** (`'audio-stall' | 'cancelled'`) is surfaced as `data-error` and read by both the results verdict and the audit guard. It is structural on purpose — do not replace it with prose matching.
+- **Hit matching is sequence alignment, not nearest-neighbour** (T-022). Greedy per-target matching cascaded: one dropped note made the app report the whole drill as rushed.
+- **Live feedback measures against the drill's targets, not the metronome click** (T-027). The click is quarter notes; drills are written in eighths.
+
+### Scaffolding freeze
+
+`AGENT_PROTOCOL` Rule 4 forbids `window.__E2E_*` hooks, `navigator.webdriver` branches and test-only flags in `src/`. Eleven predate the rule and are being removed (T-020).
+
+**Do not add a twelfth, and do not widen an existing one.** If a test cannot reach something without a hook, that is a finding — report it.
