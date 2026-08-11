@@ -33,10 +33,15 @@ export class GrooveCircle {
   private _lastHitDelta: number = 0;
   private _lastHitScore: number = SCORING_CATEGORIES.MISS;
   
+  private _pendingWorstScore: number = -1;
+  private _pendingWorstDelta: number = 0;
+  private _flushTimer: number | null = null;
+  
   constructor(config: GrooveCircleConfig) {
     this._config = config;
     this._blindMode = new BlindModeController();
     this._render = this._render.bind(this);
+    this._flushHits = this._flushHits.bind(this);
   }
 
   mount(container: HTMLElement): void {
@@ -53,10 +58,15 @@ export class GrooveCircle {
     
     // E2E QA Hooks
     (window as any).__E2E_GROOVE_CIRCLE_CTX__ = this._ctx;
-    (window as any).__E2E_SIMULATE_HIT__ = (type: 'perfect' | 'early' | 'late', timeMs?: number) => {
+    (window as any).__E2E_SIMULATE_HIT__ = (type: 'perfect' | 'early' | 'late', timeMs?: number, noFlush?: boolean) => {
       const score = type === 'perfect' ? SCORING_CATEGORIES.GREEN : type === 'early' ? SCORING_CATEGORIES.YELLOW : SCORING_CATEGORIES.RED;
       const delta = type === 'perfect' ? 0 : type === 'early' ? -25 : 25;
       this.registerHit(delta, score);
+      
+      if (!noFlush && this._flushTimer !== null) {
+        window.clearTimeout(this._flushTimer);
+        this._flushHits();
+      }
       if (timeMs !== undefined) {
         this._lastHitTimeMs = timeMs;
       }
@@ -70,6 +80,10 @@ export class GrooveCircle {
 
   unmount(): void {
     this.stop();
+    if (this._flushTimer !== null) {
+      window.clearTimeout(this._flushTimer);
+      this._flushTimer = null;
+    }
     if (this._container && this._canvas) {
       this._container.removeChild(this._canvas);
     }
@@ -99,17 +113,37 @@ export class GrooveCircle {
   }
 
   registerHit(deltaMs: number, score: number): void {
+    if (this._pendingWorstScore === -1) {
+      this._pendingWorstScore = score;
+      this._pendingWorstDelta = deltaMs;
+      this._flushTimer = window.setTimeout(this._flushHits, 30);
+    } else {
+      if (score > this._pendingWorstScore) {
+        this._pendingWorstScore = score;
+        this._pendingWorstDelta = deltaMs;
+      } else if (score === this._pendingWorstScore && Math.abs(deltaMs) > Math.abs(this._pendingWorstDelta)) {
+        this._pendingWorstDelta = deltaMs;
+      }
+    }
+  }
+
+  private _flushHits(): void {
+    if (this._pendingWorstScore === -1) return;
+    
     this._lastHitTimeMs = performance.now();
-    this._lastHitDelta = deltaMs;
-    this._lastHitScore = score;
+    this._lastHitDelta = this._pendingWorstDelta;
+    this._lastHitScore = this._pendingWorstScore;
     
     // Convert numerical score to category string for blind mode
     let cat: 'green' | 'yellow' | 'red' | 'miss' = 'miss';
-    if (score === SCORING_CATEGORIES.GREEN) cat = 'green';
-    else if (score === SCORING_CATEGORIES.YELLOW) cat = 'yellow';
-    else if (score === SCORING_CATEGORIES.RED) cat = 'red';
+    if (this._lastHitScore === SCORING_CATEGORIES.GREEN) cat = 'green';
+    else if (this._lastHitScore === SCORING_CATEGORIES.YELLOW) cat = 'yellow';
+    else if (this._lastHitScore === SCORING_CATEGORIES.RED) cat = 'red';
     
     this._blindMode.recordHit(cat);
+    
+    this._pendingWorstScore = -1;
+    this._flushTimer = null;
   }
 
   private _render(timeMs: number): void {
@@ -171,11 +205,11 @@ export class GrooveCircle {
         
         let hitColor = this.COLOR_GREEN;
         // The Tuner Pulse: Green for Perfect, Yellow on Left for Early, Red on Right for Late
-        if (this._lastHitScore === SCORING_CATEGORIES.GREEN || Math.abs(this._lastHitDelta) < 15) {
+        if (this._lastHitScore === SCORING_CATEGORIES.GREEN) {
           hitColor = this.COLOR_GREEN;
-        } else if (this._lastHitDelta < -15) {
+        } else if (this._lastHitDelta < 0) {
           hitColor = this.COLOR_YELLOW;
-        } else if (this._lastHitDelta > 15) {
+        } else {
           hitColor = this.COLOR_RED;
         }
         

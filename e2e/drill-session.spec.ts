@@ -239,13 +239,18 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
     // Store opacity after 12 perfect hits
     (window as any).__E2E_OPACITY_BEFORE_BAD_HIT = (window as any).__E2E_LAST_OPACITY__;
     
-    // Make the 13th hit late by directly simulating it via the visualizer hook
-    // to bypass Playwright/Browser IPC timing drift and VirtualDrummer delays
-    if (typeof (window as any).__E2E_SIMULATE_HIT__ === 'function') {
-      (window as any).__E2E_SIMULATE_HIT__('late', performance.now());
-    } else {
-      console.warn("E2E_SIMULATE_HIT not found");
-    }
+    // Make the 13th hit late using the virtual drummer rather than injecting it,
+    // to prove that the full product path (midi -> audio -> visual) correctly
+    // identifies it as late when compared against the drill sequence.
+    const lateTargetPerfMs = start + 12 * spacing;
+    // The default timing window is 30ms (green), 50ms (yellow).
+    // Hitting it 60ms late should make it red.
+    const intendedHitTime = lateTargetPerfMs + 60;
+    
+    const waitLate = intendedHitTime - performance.now() - 5;
+    if (waitLate > 0) await new Promise((r) => setTimeout(r, waitLate));
+    
+    vd.hit(38, 100, intendedHitTime);
     
     // Wait for the hit to be processed and rendered
     await new Promise(r => setTimeout(r, 100));
@@ -256,4 +261,7 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
 
   const opacity = await page.evaluate(() => (window as any).__E2E_LAST_OPACITY__);
   expect(opacity).toBeGreaterThan(0.9);
+
+  const lastColor = await page.evaluate(() => (window as any).__E2E_LAST_HIT_COLOR__);
+  expect(lastColor).not.toBe('hsl(142, 76%, 45%)'); // Not green
 });

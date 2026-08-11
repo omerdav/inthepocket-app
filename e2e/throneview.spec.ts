@@ -99,5 +99,22 @@ test.describe('ThroneView & GrooveCircle QA', () => {
     });
     expect(lateColor).toBe('hsl(0, 80%, 55%)'); // Red
   });
+  test('G5 - Coalescing Simultaneous Hits (R2)', async ({ page }) => {
+    await page.goto('/?dev=1');
+    
+    let worstColor = await page.evaluate(async () => {
+      // Simulate two hits in the same frame (within 30ms window)
+      // One perfect (green), one late (red)
+      // The coalescer should pick the worst (red)
+      (window as any).__E2E_SIMULATE_HIT__('late', 1000, true);
+      (window as any).__E2E_SIMULATE_HIT__('perfect', 1005);
+      
+      // Wait for the coalescing timer (30ms) to fire
+      await new Promise(r => setTimeout(r, 40));
+      (window as any).__E2E_FORCE_RENDER__(1050);
+      return (window as any).__E2E_LAST_HIT_COLOR__;
+    });
+    
+    expect(worstColor).toBe('hsl(0, 80%, 55%)'); // Should be Red, not Green
+  });
 });
-

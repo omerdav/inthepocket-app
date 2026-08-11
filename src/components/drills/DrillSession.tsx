@@ -53,6 +53,7 @@ export function DrillSession({ unit, worker }: Props) {
   const [mastered, setMastered] = useState(false)
   const [hardwareBlock, setHardwareBlock] = useState<HardwareCapabilityResult | null>(null)
   const [hardwareWarnings, setHardwareWarnings] = useState<DataDrumType[]>([])
+  const [startPerfMs, setStartPerfMs] = useState<number | null>(null)
   const runnerRef = useRef<DrillRunner | null>(null)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const grooveCircleRef = useRef<GrooveCircle | null>(null)
@@ -86,15 +87,33 @@ export function DrillSession({ unit, worker }: Props) {
   }, [phase])
 
   useEffect(() => {
-    if (phase !== 'playing') return
+    if (phase !== 'playing' || startPerfMs === null) return
     const unsub = midiEngine.onHit((hit: HitEvent) => {
       if (grooveCircleRef.current) {
-        const category = categoriseTiming(hit.deltaMs, unit.passCriteria.timingWindowMs)
-        grooveCircleRef.current.registerHit(hit.deltaMs, category)
+        let deltaMs = hit.deltaMs;
+        const correlator = audioEngine.correlator;
+        
+        if (correlator) {
+          const hitAudioMs = correlator.mapHitTime(hit.timestamp) * 1000;
+          const startAudioMs = correlator.mapHitTime(startPerfMs) * 1000;
+          
+          let minAbs = Infinity;
+          for (let i = 0; i < unit.sequence.length; i++) {
+             const targetAudioMs = startAudioMs + unit.sequence[i].targetTimeMs;
+             const diff = hitAudioMs - targetAudioMs;
+             if (Math.abs(diff) < minAbs) {
+               minAbs = Math.abs(diff);
+               deltaMs = diff;
+             }
+          }
+        }
+
+        const category = categoriseTiming(deltaMs, unit.passCriteria.timingWindowMs)
+        grooveCircleRef.current.registerHit(deltaMs, category)
       }
     })
     return unsub
-  }, [phase, unit.passCriteria.timingWindowMs])
+  }, [phase, startPerfMs, unit.sequence, unit.passCriteria.timingWindowMs])
 
   // Hydrate the mastery badge from storage. This is what makes persistence
   // observable: pass the drill, reload, and the badge is still there.
@@ -123,6 +142,7 @@ export function DrillSession({ unit, worker }: Props) {
       const detail = (e as CustomEvent<DrillPhaseDetail>).detail
       setPhase(detail.phase)
       if (detail.countInBeat) setCountInBeat(detail.countInBeat)
+      if (detail.startPerfMs !== undefined) setStartPerfMs(detail.startPerfMs)
       isDrillPlaying.value = detail.phase === 'playing' || detail.phase === 'count-in'
     }
     window.addEventListener(DRILL_PHASE_EVENT, onPhase)
