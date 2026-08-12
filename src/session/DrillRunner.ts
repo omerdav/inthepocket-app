@@ -288,7 +288,7 @@ export class DrillRunner {
         let passMessage: string | undefined;
 
         if (unit.passCriteria.decouplingScoreThreshold !== undefined) {
-          const evalResult = evaluateIndependencePass(unit, categories, msg.decouplingScore ?? 0);
+          const evalResult = evaluateIndependencePass(unit, categories, msg.decouplingScore);
           passed = evalResult.passed;
           passMessage = evalResult.message;
         } else {

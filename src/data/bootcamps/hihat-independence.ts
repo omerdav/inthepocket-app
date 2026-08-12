@@ -157,7 +157,7 @@ function generateSnareBackbeat(bpm: number, bars: number): DrillNote[] {
 export function evaluateIndependencePass(
   unit: ContentUnit,
   timingScores: Int8Array,
-  decouplingScore: number
+  decouplingScore?: number
 ): { passed: boolean; message: string } {
   if (timingScores.length === 0) return { passed: false, message: 'No notes played.' };
 
@@ -174,6 +174,12 @@ export function evaluateIndependencePass(
   }
 
   if (unit.passCriteria.decouplingScoreThreshold !== undefined) {
+    if (decouplingScore === undefined) {
+      return { 
+        passed: true, 
+        message: 'Passed (Not enough data for decoupling score).' 
+      };
+    }
     if (decouplingScore > unit.passCriteria.decouplingScoreThreshold) {
       return { 
         passed: false, 

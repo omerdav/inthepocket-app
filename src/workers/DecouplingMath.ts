@@ -1,8 +1,12 @@
-export function calculateDecouplingScore(limbA: number[] | Float32Array, limbB: number[] | Float32Array): number {
-  if (limbA.length === 0 || limbA.length !== limbB.length) return 0;
+export function calculateDecouplingScore(limbA: number[] | Float32Array, limbB: number[] | Float32Array): number | undefined {
+  if (limbA.length === 0 || limbA.length !== limbB.length) return undefined;
   
   const n = limbA.length;
-  if (n < 2) return 0; // Cannot correlate less than 2 points
+  // R3: require a minimum number of grid slots before scoring at all
+  // With n=16, the 5% critical value for Pearson's r is ~0.50, which sits above most thresholds (0.4-0.6)
+  // For n=8, the critical value is ~0.71, so |r| >= 0.4 is common under the null hypothesis.
+  // 16 slots means at least 4 bars of quarter notes, or 2 bars with heavy subdivision.
+  if (n < 16) return undefined;
 
   // 1. Calculate means
   let sumA = 0;
@@ -32,10 +36,11 @@ export function calculateDecouplingScore(limbA: number[] | Float32Array, limbB: 
   const varB = sumSqB / n;
 
   // 3. Variance Guard
-  // If the variance of either limb is extremely low (e.g., standard deviation < 1ms),
-  // they are playing with robotic precision. Any correlation would be mathematically
-  // spurious (dividing by near-zero). Return 0 (perfect independence / no dependent drift).
-  const VARIANCE_THRESHOLD = 1.0; 
+  // R2: Choose variance floor and justify musically.
+  // A standard deviation of ~5ms is world-class tightness; a variance of 25.0.
+  // Below this, the drummer is playing virtually robotically, and any correlation
+  // found in the noise is spurious rather than a real dependent drift.
+  const VARIANCE_THRESHOLD = 25.0; 
   if (varA < VARIANCE_THRESHOLD || varB < VARIANCE_THRESHOLD) {
     return 0;
   }

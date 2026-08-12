@@ -216,7 +216,7 @@ self.onmessage = (event: MessageEvent<ScoringWorkerMessage>) => {
       if (diff < minSubdivision && diff > 5) minSubdivision = diff;
     }
     
-    let decouplingScore = 0;
+    let decouplingScore: number | undefined = undefined;
     if (minSubdivision !== Infinity && uniqueBeats.length > 2) {
       const gridLen = uniqueBeats.length;
       const handArray = new Float32Array(gridLen);
