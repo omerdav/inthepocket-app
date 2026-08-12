@@ -211,8 +211,8 @@ A task is not green unless it matches or beats these:
 | | |
 |---|---|
 | `npm run build` | clean (`tsc -b && vite build`) |
-| `npm test` | **135 passing** |
-| `npm run test:e2e` | **80 passing** (product project) |
+| `npm test` | **142 passing** |
+| `npm run test:e2e` | **83 passing** (product project) |
 | drill audit | **30 run lines**, 31 tests including the boundary guard |
 
 `npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of those 80 tests. Run both, paste both.
@@ -224,7 +224,7 @@ The 30 drill-audit lines assert a verdict per drill per run type, and none of th
 ### Known intermittents — report as observed, do not fix
 
 - **P-1** — the audio clock stalls under load. Shows as `"Audio System Interrupted"` on the results screen.
-- **P-5** — the Groove Circle live-hit test returns an undefined colour. Two hypotheses eliminated; cause unknown. Lives in `GrooveCircle` / `DrillSession`, so if you are working there, read the register entry before attributing a failure to your change.
+- **P-5** — the Groove Circle live-hit test returns an undefined colour. **Four sightings across four sessions.** Two hypotheses eliminated, and it survived T-020's migration unchanged — it now presents as an undefined `dataset.lastHitColor` rather than an undefined global, so the mechanism was never the cause. Lives in `GrooveCircle` / `DrillSession`; if you are working there, read the register entry before attributing a failure to your change.
 
 If either fires, say so and move on. Do not chase them, and do not let them stop you reporting your own result honestly.
 
@@ -234,7 +234,8 @@ If either fires, say so and move on. Do not chase them, and do not let them stop
 - **The error path dispatches `DRILL_PHASE_EVENT`** rather than setting phase locally (T-021). Setting local state strands `isDrillPlaying` true and suppresses the drummer's quick menu for the rest of the session.
 - **`DrillResult.error`** (`'audio-stall' | 'cancelled'`) is surfaced as `data-error` and read by both the results verdict and the audit guard. It is structural on purpose — do not replace it with prose matching.
 - **Hit matching is sequence alignment, not nearest-neighbour** (T-022). Greedy per-target matching cascaded: one dropped note made the app report the whole drill as rushed.
-- **Live feedback measures against the drill's targets, not the metronome click** (T-027). The click is quarter notes; drills are written in eighths.
+- **Live feedback measures against the drill's targets, not the metronome click** (T-027). The click is quarter notes; drills are written in eighths. The same nearest-target loop also attributes sticking for the balance meter (T-004) — reuse it rather than writing a second matcher.
+- **One documented `navigator.webdriver` exception remains**, guarded by `src/__tests__/no-e2e.test.ts`, which fails if a second appears or if any `__E2E_` string returns to `src/`.
 
 ### Scaffolding freeze
 
