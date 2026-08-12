@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/virtual-drummer';
+import { test, expect, dismissFirstRun } from './fixtures/virtual-drummer';
 import { MIDI_NOTE } from '../src/audio/midi';
 
 test.describe('ThroneView & GrooveCircle QA', () => {
@@ -8,6 +8,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
 
   test('G1 - Blind Mode E2E', async ({ page }) => {
     await page.goto('/?dev=1');
+    await dismissFirstRun(page);
     
     // Setup blind mode threshold = 4
     await page.evaluate(() => {
@@ -44,6 +45,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
 
   test('G2 - Visual Pixel Test', async ({ page }) => {
     await page.goto('/?dev=1');
+    await dismissFirstRun(page);
     
     await page.evaluate(async () => {
       document.querySelector('[data-testid="groove-circle-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-simulate-hit', { detail: { type: 'perfect', timeMs: undefined, noFlush: false } }));
@@ -56,6 +58,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
 
   test('G3 - Tuner Pulse Color', async ({ page }) => {
     await page.goto('/?dev=1');
+    await dismissFirstRun(page);
 
     let earlyColor = await page.evaluate(() => {
       document.querySelector('[data-testid="groove-circle-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-simulate-hit', { detail: { type: 'early', timeMs: 1000, noFlush: false } }));
@@ -74,6 +77,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
 
   test('G4 - Arrow Indicator', async ({ page }) => {
     await page.goto('/?dev=1');
+    await dismissFirstRun(page);
     
     let perfectColor = await page.evaluate(() => {
       if ((window as any).setHitVisualMode) {
@@ -101,6 +105,7 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
   test('G5 - Coalescing Simultaneous Hits (R2)', async ({ page }) => {
     await page.goto('/?dev=1');
+    await dismissFirstRun(page);
     
     let worstColor = await page.evaluate(async () => {
       // Simulate two hits in the same frame (within 30ms window)

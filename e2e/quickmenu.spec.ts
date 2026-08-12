@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dismissFirstRun } from './fixtures/virtual-drummer';
 import { enterApp } from './helpers';
 
 test.describe('QuickMenu UI & Navigation', () => {
@@ -13,6 +14,7 @@ test.describe('QuickMenu UI & Navigation', () => {
 
   test('Visibility State: QuickMenu is unmounted during active drill playback', async ({ page }) => {
     await page.goto('/?dev=1');
+    await dismissFirstRun(page);
 
     // Should be visible initially
     await expect(page.getByTestId('quick-menu-panel')).toBeVisible();

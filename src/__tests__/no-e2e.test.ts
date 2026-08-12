@@ -38,9 +38,7 @@ function getAllFiles(dirPath: string, arrayOfFiles: string[] = []) {
  * The exception is listed by file so that a second one fails this test rather
  * than quietly joining an allowlist.
  */
-const ALLOWED = new Map<string, RegExp>([
-  ['src/app.tsx', /navigator\.webdriver/],
-])
+const ALLOWED = new Map<string, RegExp>([])
 
 describe('R6 Guard: No E2E hooks in production code', () => {
   it('src/ contains no __E2E_ hooks and no undocumented navigator.webdriver', () => {
@@ -67,10 +65,10 @@ describe('R6 Guard: No E2E hooks in production code', () => {
 
   it('the documented exception has not grown', () => {
     // If H-4 is fixed, this test fails and the allowlist should be emptied.
-    expect([...ALLOWED.keys()]).toEqual(['src/app.tsx']);
+    expect([...ALLOWED.keys()]).toEqual([]);
     // @ts-ignore
     const app = readFileSync('src/app.tsx', 'utf8') as string;
     const hits = app.split('navigator.webdriver').length - 1;
-    expect(hits, 'app.tsx should read navigator.webdriver exactly once').toBe(1);
+    expect(hits, 'app.tsx should read navigator.webdriver exactly once').toBe(0);
   });
 });

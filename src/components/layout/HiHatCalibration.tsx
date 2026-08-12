@@ -1,4 +1,4 @@
-import { signal, useSignalEffect } from '@preact/signals';
+import { signal, useSignal, useSignalEffect } from '@preact/signals';
 import { midiEngine } from '../../audio/midi';
 import { profilesStore } from '../../store';
 
@@ -18,10 +18,10 @@ export async function restoreHiHatCalibration(): Promise<boolean> {
 }
 
 export function HiHatCalibration() {
-  const step = signal<0 | 1 | 2>(0); // 0 = start, 1 = open, 2 = closed
-  const openValue = signal<number>(0);
-  const closedValue = signal<number>(127);
-  const currentValue = signal<number>(0);
+  const step = useSignal<0 | 1 | 2>(0); // 0 = start, 1 = open, 2 = closed
+  const openValue = useSignal<number>(0);
+  const closedValue = useSignal<number>(127);
+  const currentValue = useSignal<number>(0);
 
   // Poll current CC#4 value for UI feedback
   useSignalEffect(() => {

@@ -304,8 +304,6 @@ export function App() {
     }
   });
 
-  const isE2E = typeof navigator !== 'undefined' && navigator.webdriver;
-
   // Session entry: satisfy the browser's gesture requirement, then confirm the
   // kit. Skips itself when autoplay is already granted (installed PWA), so
   // there is one code path rather than an install-aware branch.
@@ -323,7 +321,7 @@ export function App() {
 
   return (
     <>
-      {hydrated && !hasCompletedDiagnostic.value && !isE2E && (
+      {hydrated && !hasCompletedDiagnostic.value && (
         <div class="diagnostic-overlay" data-testid="diagnostic-overlay" style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
           background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', 
@@ -340,7 +338,7 @@ export function App() {
         </div>
       )}
 
-      {!isE2E && <HiHatCalibration />}
+      <HiHatCalibration />
       
       <ThroneView
         header={header}

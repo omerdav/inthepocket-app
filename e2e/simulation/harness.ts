@@ -1,4 +1,5 @@
 import { expect } from '../fixtures/virtual-drummer';
+import { enterApp } from '../helpers';
 import { drummers } from './drummers';
 import { kits } from './kits';
 import { generatePerformance } from './performance';
@@ -18,26 +19,8 @@ export async function runSimulation(page: any, drummerId: string, kitId: string,
   // 2. Navigate and wait for drill
   await page.goto(`/?drill=${drillId}`);
   
-  // Handle EngineWarmup screen if it appears
-  const warmupOverlay = page.getByTestId('engine-warmup');
-  try {
-    if (await warmupOverlay.isVisible({ timeout: 2000 })) {
-      // Tap to unlock audio
-      await page.getByTestId('engine-warmup').click(); // warmup-tap might not be clickable if overlay catches event
-      // Wait for it to ask for the kit
-      await expect(page.getByTestId('warmup-kit')).toBeVisible();
-      // Hit the snare to confirm kit
-      await page.evaluate(() => {
-        (window as any).__virtualDrummer.hit(38, 100, performance.now());
-      });
-      // Wait for it to clear
-      await expect(warmupOverlay).toBeHidden();
-    }
-  } catch (e) {
-    // If timeout, just proceed
-  }
-  
-  await expect(page.getByTestId('drill-session')).toBeVisible();
+  // Handle EngineWarmup and first-run overlays
+  await enterApp(page);
   
   // 3. Hook phase event to get startPerfMs
   await page.evaluate(() => {

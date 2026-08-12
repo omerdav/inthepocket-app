@@ -1,5 +1,5 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures/virtual-drummer';
+import { enterApp } from './helpers';
 import { getDrill, DRILL_REGISTRY } from '../src/data/registry';
 import { DRUM_TYPE_TO_MIDI } from '../src/data/utils';
 
@@ -61,8 +61,7 @@ test.describe('T-005 Drill Audit', () => {
         const earlyMs = derivedEarlyMs(drill.passCriteria.timingWindowMs, kind);
 
         await page.goto(`/?drill=${drillId}`);
-        await dismissWarmup(page);
-        await expect(page.getByTestId('drill-session')).toBeVisible();
+        await enterApp(page);
 
         await page.evaluate(() => {
           (window as any).__drillStart = new Promise<number>((resolve) => {
@@ -178,15 +177,3 @@ test.describe('T-005 Drill Audit', () => {
   }
 });
 
-async function dismissWarmup(page: Page): Promise<void> {
-  const warmupOverlay = page.getByTestId('engine-warmup');
-  try {
-    if (await warmupOverlay.isVisible({ timeout: 2000 })) {
-      await warmupOverlay.click();
-      await expect(page.getByTestId('warmup-kit')).toBeVisible();
-      await page.waitForTimeout(500); // Give effect time to attach listener
-      await page.evaluate(() => (window as any).__virtualDrummer.hit(38, 100, performance.now()));
-      await expect(warmupOverlay).toBeHidden();
-    }
-  } catch (e) {}
-}

@@ -120,3 +120,53 @@ export const test = base.extend<VirtualDrummerFixtures>({
 });
 
 export { expect } from '@playwright/test';
+
+/**
+ * Pages whose first-run overlays have already been cleared.
+ *
+ * The overlays appear once per browser context: dismissing them persists
+ * `hasCompletedDiagnostic` and the calibration, so every later navigation in
+ * the same page is already past them. The waits below are therefore paid once
+ * rather than per `goto`.
+ *
+ * That distinction is not cosmetic. At 3s + 2s per call, a spec looping over
+ * ten drills spent fifty seconds waiting for overlays that could never appear
+ * and blew a thirty-second budget.
+ *
+ * Racing the overlay against the app instead of waiting for it looks faster
+ * and is wrong: `drill-session` can become visible a moment before the overlay
+ * mounts, the check then finds nothing to dismiss, and the overlay is left
+ * covering the UI. Waiting for the overlay specifically — just once — is both
+ * correct and cheap.
+ */
+const firstRunCleared = new WeakSet<object>();
+
+export async function dismissFirstRun(page: any): Promise<void> {
+  if (firstRunCleared.has(page)) return;
+  firstRunCleared.add(page);
+
+  const diagOverlay = page.getByTestId('diagnostic-overlay');
+  try {
+    await diagOverlay.waitFor({ state: 'visible', timeout: 3000 });
+  } catch (e) {}
+
+  if (await diagOverlay.isVisible()) {
+    await diagOverlay.getByRole('button', { name: 'Skip' }).click();
+    await diagOverlay.waitFor({ state: 'hidden' });
+  }
+
+  const hihatOverlay = page.getByTestId('hihat-calibration-overlay');
+  try {
+    await hihatOverlay.waitFor({ state: 'visible', timeout: 2000 });
+  } catch (e) {}
+
+  if (await hihatOverlay.isVisible()) {
+    const cancelBtn = hihatOverlay.getByRole('button', { name: 'Cancel' });
+    if (await hihatOverlay.getByRole('button', { name: 'Start Calibration' }).isVisible()) {
+      await hihatOverlay.getByRole('button', { name: 'Start Calibration' }).click();
+    }
+    await cancelBtn.waitFor({ state: 'visible' });
+    await cancelBtn.click();
+    await hihatOverlay.waitFor({ state: 'hidden' });
+  }
+}

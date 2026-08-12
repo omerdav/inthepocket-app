@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+import { dismissFirstRun } from './fixtures/virtual-drummer'
 
 /**
  * Walk the session-entry flow the way a drummer does.
@@ -17,6 +18,7 @@ export async function enterApp(page: Page): Promise<void> {
 
   // Already inside (dev route, or autoplay was granted and a kit answered).
   if ((await warmup.count()) === 0) {
+    await dismissFirstRun(page)
     await expect(page.getByTestId('drill-session')).toBeVisible()
     return
   }
@@ -54,11 +56,9 @@ export async function enterApp(page: Page): Promise<void> {
       ).__virtualDrummer.hit(38, 100) // snare head
     })
   } else {
-    // No kit in this spec — take the same escape hatch a drummer without a
-    // MIDI kit would. The button appears once the app concludes no MIDI is
-    // available, rather than after the full no-hit timeout.
     await page.getByTestId('warmup-skip').click({ timeout: 10000 })
   }
 
+  await dismissFirstRun(page)
   await expect(page.getByTestId('drill-session')).toBeVisible({ timeout: 10000 })
 }
