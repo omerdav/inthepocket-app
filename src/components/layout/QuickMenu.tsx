@@ -32,10 +32,6 @@ export function QuickMenu() {
   const focusIndex = useSignal(PHASES.indexOf('practice'));
   const containerRef = useRef<HTMLDivElement>(null);
 
-  if (!isQuickMenuOpen.value) {
-    return null;
-  }
-
   const phase = sessionPhase.value;
   const sections = sectionsForPhase(phase);
   const emptyState = PHASE_EMPTY_STATE[phase];
@@ -54,7 +50,8 @@ export function QuickMenu() {
   }, [phase]);
 
   useEffect(() => {
-    if (!isQuickMenuOpen.value) return;
+    let active = isQuickMenuOpen.value;
+    if (!active) return;
 
     const handleScroll = (e: Event) => {
       e.preventDefault();
@@ -68,8 +65,6 @@ export function QuickMenu() {
       if (item.kind === 'tab') {
         sessionPhase.value = item.phase;
       } else {
-        // One-touch launch: a drummer selecting with a rim hit has no way to
-        // then reach a separate Start control.
         navigateToDrill(item.entry.unit.id, { autoStart: true });
       }
     };
@@ -82,6 +77,10 @@ export function QuickMenu() {
       window.removeEventListener('stick-select', handleSelect);
     };
   }, [isQuickMenuOpen.value, navItems.length, phase]);
+
+  if (!isQuickMenuOpen.value) {
+    return null;
+  }
 
   return (
     <div className="quick-menu-panel" ref={containerRef} data-testid="quick-menu-panel">

@@ -51,6 +51,7 @@ export function DrillSession({ unit, worker }: Props) {
   const [phase, setPhase] = useState<DrillPhase>('idle')
   const [countInBeat, setCountInBeat] = useState(0)
   const [result, setResult] = useState<DrillResult | null>(null)
+  const [resultFocusIndex, setResultFocusIndex] = useState(0)
   const [audioLocked, setAudioLocked] = useState(false)
   const [mastered, setMastered] = useState(false)
   const [hardwareBlock, setHardwareBlock] = useState<HardwareCapabilityResult | null>(null)
@@ -168,6 +169,7 @@ export function DrillSession({ unit, worker }: Props) {
     setResult(null)
     setCountInBeat(0)
     setHardwareBlock(null)
+    setResultFocusIndex(0)
     balanceTrackerRef.current.reset()
     
     // Unlock audio immediately from the gesture, before any async storage reads
@@ -236,6 +238,29 @@ export function DrillSession({ unit, worker }: Props) {
     pendingLaunchId.value = null
     void start()
   })
+
+  useEffect(() => {
+    if (phase !== 'complete' || !result) return
+    const handleScroll = (e: Event) => {
+      e.stopImmediatePropagation()
+      setResultFocusIndex(prev => prev === 0 ? 1 : 0)
+    }
+    const handleSelect = (e: Event) => {
+      e.stopImmediatePropagation()
+      if (resultFocusIndex === 0) {
+        void start()
+      } else {
+        setResult(null)
+        setPhase('idle')
+      }
+    }
+    window.addEventListener('stick-scroll-down', handleScroll)
+    window.addEventListener('stick-select', handleSelect)
+    return () => {
+      window.removeEventListener('stick-scroll-down', handleScroll)
+      window.removeEventListener('stick-select', handleSelect)
+    }
+  }, [phase, result, resultFocusIndex, start])
 
   const busy = phase === 'count-in' || phase === 'playing' || phase === 'scoring'
 
@@ -322,9 +347,17 @@ export function DrillSession({ unit, worker }: Props) {
                 Decoupling score: {result.decouplingScore.toFixed(2)} (target: ≤ {unit.passCriteria.decouplingScoreThreshold})
               </div>
             )}
-            <button class="drill-start again" onClick={start} data-testid="drill-retry">
-              Again
-            </button>
+            <div class="result-actions">
+              <button class={`drill-start again ${resultFocusIndex === 0 ? 'focused' : ''}`} onClick={start} data-testid="drill-retry">
+                Again
+              </button>
+              <button class={`drill-start again ${resultFocusIndex === 1 ? 'focused' : ''}`} onClick={() => {
+                setResult(null)
+                setPhase('idle')
+              }} data-testid="drill-menu">
+                Menu
+              </button>
+            </div>
           </div>
         )}
 

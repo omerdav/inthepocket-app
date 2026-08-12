@@ -85,6 +85,17 @@
   font-size: 26px;
 }
 
+.result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.drill-start.focused {
+  outline: 4px solid #fff;
+  outline-offset: 4px;
+}
+
 .count-in {
   font-size: 180px;
   font-weight: 800;
