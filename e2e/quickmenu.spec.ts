@@ -41,12 +41,12 @@ test.describe('QuickMenu UI & Navigation', () => {
   const scroll = (page: import('@playwright/test').Page, times = 1) =>
     page.evaluate((n) => {
       for (let i = 0; i < n; i++) {
-        window.dispatchEvent(new CustomEvent('stick-scroll-down'));
+        window.dispatchEvent(new window.CustomEvent('stick-scroll-down'));
       }
     }, times);
 
   const select = (page: import('@playwright/test').Page) =>
-    page.evaluate(() => window.dispatchEvent(new CustomEvent('stick-select')));
+    page.evaluate(() => window.dispatchEvent(new window.CustomEvent('stick-select')));
 
   test('Tab Switching: focus moves across tabs and select switches phase', async ({ page }) => {
     await expect(page.getByTestId('tab-practice')).toHaveClass(/active/);

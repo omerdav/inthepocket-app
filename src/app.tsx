@@ -20,10 +20,12 @@ import { useSignalEffect } from '@preact/signals'
 
 // E2E Hooks
 if (typeof window !== 'undefined') {
-  (window as any).setBlindModeParams = (enabled: boolean, threshold: number) => {
-    isBlindModeEnabled.value = enabled;
-    blindModeThreshold.value = threshold;
-  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('itp-set-blind-mode', ((e: CustomEvent) => {
+      isBlindModeEnabled.value = e.detail.enabled;
+      blindModeThreshold.value = e.detail.threshold;
+    }) as EventListener);
+  }
   (window as any).setHitVisualMode = (mode: 'pulse' | 'arrows') => {
     hitVisualMode.value = mode;
   };

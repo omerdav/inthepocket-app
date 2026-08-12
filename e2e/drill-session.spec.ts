@@ -118,7 +118,7 @@ test('Groove Circle is visible during playing and reflects live hits', async ({ 
     const vd = (window as any).__virtualDrummer;
     vd.hit(38, 100, start);
     await new Promise(r => setTimeout(r, 50));
-    return (window as any).__E2E_LAST_HIT_COLOR__;
+    return (document.querySelector('[data-testid="groove-circle-canvas"]') as HTMLElement)?.dataset.lastHitColor;
   });
   expect(greenColor).toBe('hsl(142, 76%, 45%)');
 });
@@ -205,8 +205,8 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
   test.setTimeout(30000);
   
   await page.evaluate(() => {
-    if ((window as any).setBlindModeParams) {
-      (window as any).setBlindModeParams(true, 4);
+    if (true) {
+      window.dispatchEvent(new window.CustomEvent('itp-set-blind-mode', { detail: { enabled: true, threshold: 4 } }));
     }
     
     (window as any).__drillStart = new Promise<number>((resolve) => {
@@ -237,7 +237,7 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
     await new Promise(r => setTimeout(r, 50));
     
     // Store opacity after 12 perfect hits
-    (window as any).__E2E_OPACITY_BEFORE_BAD_HIT = (window as any).__E2E_LAST_OPACITY__;
+    (window as any).__E2E_OPACITY_BEFORE_BAD_HIT = parseFloat((document.querySelector('[data-testid="groove-circle-canvas"]') as HTMLElement)?.dataset.lastOpacity || '0');
     
     // Make the 13th hit late using the virtual drummer rather than injecting it,
     // to prove that the full product path (midi -> audio -> visual) correctly
@@ -259,9 +259,9 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
   const opacityBefore = await page.evaluate(() => (window as any).__E2E_OPACITY_BEFORE_BAD_HIT);
   expect(opacityBefore).toBeLessThan(0.05);
 
-  const opacity = await page.evaluate(() => (window as any).__E2E_LAST_OPACITY__);
+  const opacity = await page.evaluate(() => parseFloat((document.querySelector('[data-testid="groove-circle-canvas"]') as HTMLElement)?.dataset.lastOpacity || '0'));
   expect(opacity).toBeGreaterThan(0.9);
 
-  const lastColor = await page.evaluate(() => (window as any).__E2E_LAST_HIT_COLOR__);
+  const lastColor = await page.evaluate(() => (document.querySelector('[data-testid="groove-circle-canvas"]') as HTMLElement)?.dataset.lastHitColor);
   expect(lastColor).not.toBe('hsl(142, 76%, 45%)'); // Not green
 });

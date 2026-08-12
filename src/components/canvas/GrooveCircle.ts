@@ -37,11 +37,37 @@ export class GrooveCircle {
   private _pendingWorstDelta: number = 0;
   private _flushTimer: number | null = null;
   
+  private _lastRenderedOpacity: number = -1;
+  private _lastRenderedHitColor: string = '';
+
   constructor(config: GrooveCircleConfig) {
     this._config = config;
     this._blindMode = new BlindModeController();
     this._render = this._render.bind(this);
     this._flushHits = this._flushHits.bind(this);
+    this._onSimulateHit = this._onSimulateHit.bind(this);
+    this._onForceRender = this._onForceRender.bind(this);
+  }
+
+  private _onSimulateHit(e: Event): void {
+    const customEvent = e as CustomEvent;
+    const { type, timeMs, noFlush } = customEvent.detail;
+    const score = type === 'perfect' ? SCORING_CATEGORIES.GREEN : type === 'early' ? SCORING_CATEGORIES.YELLOW : SCORING_CATEGORIES.RED;
+    const delta = type === 'perfect' ? 0 : type === 'early' ? -25 : 25;
+    this.registerHit(delta, score);
+    
+    if (!noFlush && this._flushTimer !== null) {
+      window.clearTimeout(this._flushTimer);
+      this._flushHits();
+    }
+    if (timeMs !== undefined) {
+      this._lastHitTimeMs = timeMs;
+    }
+  }
+
+  private _onForceRender(e: Event): void {
+    const customEvent = e as CustomEvent;
+    this._render(customEvent.detail?.timeMs ?? performance.now());
   }
 
   mount(container: HTMLElement): void {
@@ -56,24 +82,8 @@ export class GrooveCircle {
     // alpha: false for optimization
     this._ctx = this._canvas.getContext('2d', { alpha: false });
     
-    // E2E QA Hooks
-    (window as any).__E2E_GROOVE_CIRCLE_CTX__ = this._ctx;
-    (window as any).__E2E_SIMULATE_HIT__ = (type: 'perfect' | 'early' | 'late', timeMs?: number, noFlush?: boolean) => {
-      const score = type === 'perfect' ? SCORING_CATEGORIES.GREEN : type === 'early' ? SCORING_CATEGORIES.YELLOW : SCORING_CATEGORIES.RED;
-      const delta = type === 'perfect' ? 0 : type === 'early' ? -25 : 25;
-      this.registerHit(delta, score);
-      
-      if (!noFlush && this._flushTimer !== null) {
-        window.clearTimeout(this._flushTimer);
-        this._flushHits();
-      }
-      if (timeMs !== undefined) {
-        this._lastHitTimeMs = timeMs;
-      }
-    };
-    (window as any).__E2E_FORCE_RENDER__ = (timeMs?: number) => {
-      this._render(timeMs ?? performance.now());
-    };
+    this._canvas.addEventListener('itp-simulate-hit', this._onSimulateHit);
+    this._canvas.addEventListener('itp-force-render', this._onForceRender);
 
     this._container.appendChild(this._canvas);
   }
@@ -84,16 +94,15 @@ export class GrooveCircle {
       window.clearTimeout(this._flushTimer);
       this._flushTimer = null;
     }
+    this._canvas?.removeEventListener('itp-simulate-hit', this._onSimulateHit);
+    this._canvas?.removeEventListener('itp-force-render', this._onForceRender);
+    
     if (this._container && this._canvas) {
       this._container.removeChild(this._canvas);
     }
     this._canvas = null;
     this._ctx = null;
     this._container = null;
-    
-    // Cleanup E2E QA Hooks
-    delete (window as any).__E2E_GROOVE_CIRCLE_CTX__;
-    delete (window as any).__E2E_SIMULATE_HIT__;
   }
 
   start(): void {
@@ -156,8 +165,10 @@ export class GrooveCircle {
     // Apply blind mode opacity
     const opacity = this._blindMode.getOpacity(timeMs, isBlindModeEnabled.value, blindModeThreshold.value);
     
-    // E2E QA Hook
-    (window as any).__E2E_LAST_OPACITY__ = opacity;
+    if (opacity !== this._lastRenderedOpacity) {
+      this._lastRenderedOpacity = opacity;
+      this._canvas.dataset.lastOpacity = String(opacity);
+    }
 
     // 1. Clear background (alpha:false means we must paint it fully)
     ctx.globalAlpha = 1.0;
@@ -213,8 +224,10 @@ export class GrooveCircle {
           hitColor = this.COLOR_RED;
         }
         
-        // E2E QA Hook
-        (window as any).__E2E_LAST_HIT_COLOR__ = hitColor;
+        if (hitColor !== this._lastRenderedHitColor) {
+          this._lastRenderedHitColor = hitColor;
+          this._canvas.dataset.lastHitColor = hitColor;
+        }
 
         const mode = hitVisualMode.value;
         if (mode === 'pulse') {

@@ -28,10 +28,16 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
     if (!ctx) return;
     
     // E2E QA Hook
-    (window as any).__E2E_RHYTHM_GRID_CTX__ = ctx;
 
     let animationFrameId: number;
+    let mockCorrelatorTime: number | null = null;
+    let lastPlayheadX = -1;
+    let lastNoteX = -1;
 
+    const onCorrelatorMock = (e: Event) => {
+      mockCorrelatorTime = (e as CustomEvent).detail.timeMs;
+    };
+    canvas.addEventListener('itp-correlator-mock', onCorrelatorMock);
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (canvas.parentElement && entry.target === canvas.parentElement) {
@@ -57,9 +63,8 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
         currentTimeMs = correlator.mapHitTime(timeMs) * 1000;
       }
       
-      // E2E QA Hook for absolute playhead positioning
-      if (typeof (window as any).__E2E_CORRELATOR_MOCK__ !== 'undefined') {
-        currentTimeMs = (window as any).__E2E_CORRELATOR_MOCK__;
+      if (mockCorrelatorTime !== null) {
+        currentTimeMs = mockCorrelatorTime;
       }
       
       const width = canvas.width;
@@ -94,8 +99,10 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
       ctx.lineTo(playheadX, staffTop + 40 + 20);
       ctx.stroke();
       
-      // E2E QA Hook
-      (window as any).__E2E_PLAYHEAD_X__ = playheadX;
+      if (playheadX !== lastPlayheadX) {
+        lastPlayheadX = playheadX;
+        canvas.dataset.playheadX = String(playheadX);
+      }
       
       // Draw Notes
       const cuePlacement = stickingCuePlacement.peek(); // No allocation on hot path
@@ -106,8 +113,10 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
         const deltaMs = note.targetTimeMs - currentTimeMs;
         const x = playheadX + deltaMs * pixelsPerMs;
         
-        // E2E QA Hook
-        if (i === 0) (window as any).__E2E_NOTE_X__ = x;
+        if (i === 0 && x !== lastNoteX && mockCorrelatorTime !== null) {
+          lastNoteX = x;
+          canvas.dataset.noteX = String(x);
+        }
         
         // Only draw if visible
         if (x < -50 || x > width + 50) continue;
@@ -172,6 +181,8 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      resizeObserver.disconnect();
+      canvas.removeEventListener('itp-correlator-mock', onCorrelatorMock);
     };
   }, [sequence, correlator]);
 

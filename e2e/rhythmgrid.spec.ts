@@ -10,7 +10,7 @@ test.describe('RhythmGrid Component', () => {
     // Assert playhead X matches note X exactly.
     await page.evaluate(() => {
       // Mock clock
-      (window as any).__E2E_CORRELATOR_MOCK__ = 1000;
+      document.querySelector('[data-testid="rhythm-grid-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-correlator-mock', { detail: { timeMs: 1000 } }));
       
       // Inject drill sequence with note at 1000ms if needed, 
       // but assuming the dev team provided default sequence or it's accessible:
@@ -28,8 +28,8 @@ test.describe('RhythmGrid Component', () => {
     // Or we just evaluate a boolean if they wrote a helper.
     // For now we'll do our best:
     const isAligned = await page.evaluate(() => {
-      if (typeof (window as any).__E2E_PLAYHEAD_X__ !== 'undefined' && typeof (window as any).__E2E_NOTE_X__ !== 'undefined') {
-        return (window as any).__E2E_PLAYHEAD_X__ === (window as any).__E2E_NOTE_X__;
+      if ((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.playheadX !== undefined && (document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.noteX !== undefined) {
+        return parseFloat((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.playheadX || '0') === parseFloat((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.noteX || '0');
       }
       return true; // fallback to true if no coordinate hook exists yet
     });
@@ -41,7 +41,7 @@ test.describe('RhythmGrid Component', () => {
     
     // Freeze the clock at 1500ms so the snare note (which has a sticking 'L') is exactly on the playhead.
     await page.evaluate(() => {
-      (window as any).__E2E_CORRELATOR_MOCK__ = 1500;
+      document.querySelector('[data-testid="rhythm-grid-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-correlator-mock', { detail: { timeMs: 1500 } }));
     });
     
     await page.waitForTimeout(100);
