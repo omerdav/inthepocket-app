@@ -67,4 +67,26 @@ test.describe('RhythmGrid Component', () => {
     // Assert screenshots differ physically
     expect(insideBuffer.compare(underneathBuffer)).not.toBe(0);
   });
+
+  test('R-T2: Grid is in a stable resting state (not scrolling) before start', async ({ page }) => {
+    // Inject a drill sequence, but no correlator and no startPerfMs.
+    // The note should be drawn at a stable X coordinate.
+    await page.evaluate(() => {
+      if ((window as any).setDrillSequence) {
+        (window as any).setDrillSequence([{ targetTimeMs: 1000, drumType: 'snare', sticking: '', isAccent: false }]);
+      }
+    });
+
+    await page.waitForTimeout(100);
+
+    const getNoteX = () => page.evaluate(() => parseFloat((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.noteX || '-1'));
+
+    const firstX = await getNoteX();
+    expect(firstX).not.toBe(-1); // Ensure it is rendered
+
+    await page.waitForTimeout(300);
+
+    const secondX = await getNoteX();
+    expect(secondX).toBe(firstX); // Should not have moved
+  });
 });

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/virtual-drummer';
 import { enterApp } from './helpers';
+import { getDrill } from '../src/data/registry';
 
 /**
  * M5 — the vertical slice, end to end.
@@ -204,6 +205,9 @@ test('R2: the quick menu is reachable after an audio stall during count-in', asy
 test('R2: blind mode fades out after threshold and snaps back on bad hit', async ({ page }) => {
   test.setTimeout(30000);
   
+  const drill = getDrill('dynamics-gate-drill-1')!;
+  const windowMs = drill.passCriteria.timingWindowMs;
+  
   await page.evaluate(() => {
     if (true) {
       window.dispatchEvent(new window.CustomEvent('itp-set-blind-mode', { detail: { enabled: true, threshold: 4 } }));
@@ -220,7 +224,7 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
   await page.getByTestId('drill-start').click();
   await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
 
-  await page.evaluate(async () => {
+  await page.evaluate(async ({ windowMs }) => {
     const start: number = await (window as any).__drillStart;
     const vd = (window as any).__virtualDrummer;
     const spacing = 375;
@@ -243,9 +247,12 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
     // to prove that the full product path (midi -> audio -> visual) correctly
     // identifies it as late when compared against the drill sequence.
     const lateTargetPerfMs = start + 12 * spacing;
-    // The default timing window is 30ms (green), 50ms (yellow).
-    // Hitting it 60ms late should make it red.
-    const intendedHitTime = lateTargetPerfMs + 60;
+    
+    // dynamics-gate-drill-1 is an Introduction band drill: GREEN to ±50ms, YELLOW to ±83.3ms.
+    // We derive the offset from the drill's own band, adding half the window as a generous margin.
+    // 50ms (green) + 25ms (half the window as margin) = 75ms late.
+    // Hitting it 75ms late clears the GREEN edge by 25ms and is comfortably YELLOW.
+    const intendedHitTime = lateTargetPerfMs + windowMs + (windowMs * 0.5);
     
     const waitLate = intendedHitTime - performance.now() - 5;
     if (waitLate > 0) await new Promise((r) => setTimeout(r, waitLate));
@@ -254,7 +261,7 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
     
     // Wait for the hit to be processed and rendered
     await new Promise(r => setTimeout(r, 100));
-  });
+  }, { windowMs });
 
   const opacityBefore = await page.evaluate(() => (window as any).__E2E_OPACITY_BEFORE_BAD_HIT);
   expect(opacityBefore).toBeLessThan(0.05);
@@ -264,4 +271,66 @@ test('R2: blind mode fades out after threshold and snaps back on bad hit', async
 
   const lastColor = await page.evaluate(() => (document.querySelector('[data-testid="groove-circle-canvas"]') as HTMLElement)?.dataset.lastHitColor);
   expect(lastColor).not.toBe('hsl(142, 76%, 45%)'); // Not green
+});
+
+test('R-T1: first note is at the playhead at drill time 0', async ({ page }) => {
+  test.setTimeout(30000);
+  
+  await page.evaluate(() => {
+    (window as any).__drillStart = new Promise<number>((resolve) => {
+      window.addEventListener('itp-drill-phase', (e: Event) => {
+        const d = (e as CustomEvent).detail;
+        if (d.phase === 'playing' && typeof d.startPerfMs === 'number') resolve(d.startPerfMs);
+      });
+    });
+  });
+
+  await page.getByTestId('drill-start').click();
+  await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
+
+  const aligned = await page.evaluate(async () => {
+    const start: number = await (window as any).__drillStart;
+    
+    return new Promise<{ diff: number }>((resolve) => {
+      const check = () => {
+        const canvas = document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement;
+        const playheadX = parseFloat(canvas?.dataset.playheadX || '0');
+        const noteX = parseFloat(canvas?.dataset.noteX || '0');
+        const diff = Math.abs(playheadX - noteX);
+        
+        if (diff < 5) {
+           resolve({ diff });
+        } else if (performance.now() > start + 500) {
+           resolve({ diff });
+        } else {
+           requestAnimationFrame(check);
+        }
+      };
+      requestAnimationFrame(check);
+    });
+  });
+
+  expect(aligned.diff).toBeLessThan(5); // 5 pixel tolerance
+});
+
+test('R-T2: left/right hand balance meter appears and drifts left when left hits are softer', async ({ page }) => {
+  test.setTimeout(60000);
+  // Dynamics Gate Drill 1 sticking: R, L, R, L (even indices = R, odd indices = L).
+  // We'll make the Left hand hits (odd indices) systematically softer.
+  await playDrill(page, {
+    velocity: (i) => (i % 2 !== 0 ? 50 : 100), 
+  });
+
+  const meter = page.getByTestId('balance-meter');
+  await expect(meter).toBeVisible();
+  
+  // R6: Explicitly label it reflects the prescribed sticking
+  await expect(meter).toContainText(/Assumed Sticking Balance/i);
+
+  const marker = page.getByTestId('balance-marker');
+  await expect(marker).toBeVisible();
+  
+  // We expect the left hand to be weaker, so drift should be negative (leftPercent < 50)
+  const leftPercent = await marker.evaluate(node => parseFloat(node.style.left));
+  expect(leftPercent).toBeLessThan(45);
 });

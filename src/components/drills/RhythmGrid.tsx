@@ -16,9 +16,10 @@ export type DrillSequence = DrillNote[];
 interface RhythmGridProps {
   sequence: DrillSequence;
   correlator?: any; // To fulfill the TimestampCorrelator requirement if passed as prop
+  startPerfMs?: number | null;
 }
 
-export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
+export const RhythmGrid = ({ sequence, correlator, startPerfMs }: RhythmGridProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -61,6 +62,10 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
         // Read the exact audio time correlated with this frame's performance time
         // mapHitTime returns seconds, convert back to ms if targetTimeMs is in ms
         currentTimeMs = correlator.mapHitTime(timeMs) * 1000;
+      } else if (startPerfMs != null) {
+        currentTimeMs = timeMs - startPerfMs;
+      } else {
+        currentTimeMs = 0; // Stable resting state before start
       }
       
       if (mockCorrelatorTime !== null) {
@@ -113,7 +118,7 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
         const deltaMs = note.targetTimeMs - currentTimeMs;
         const x = playheadX + deltaMs * pixelsPerMs;
         
-        if (i === 0 && x !== lastNoteX && mockCorrelatorTime !== null) {
+        if (i === 0 && x !== lastNoteX) {
           lastNoteX = x;
           canvas.dataset.noteX = String(x);
         }
@@ -134,33 +139,47 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
           isX = true;
         }
         
-        ctx.fillStyle = '#000';
-        ctx.strokeStyle = '#000';
+        const isActive = Math.abs(deltaMs) < 100;
+        const scale = isActive ? 1.2 : 1.0;
+        const color = isActive ? '#00ffff' : '#000';
+        
+        if (isActive) {
+          ctx.shadowColor = '#00ffff';
+          ctx.shadowBlur = 10;
+        } else {
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+        }
+        
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         
         if (isX) {
+          const s = 5 * scale;
           ctx.beginPath();
-          ctx.moveTo(x - 5, y - 5);
-          ctx.lineTo(x + 5, y + 5);
-          ctx.moveTo(x + 5, y - 5);
-          ctx.lineTo(x - 5, y + 5);
+          ctx.moveTo(x - s, y - s);
+          ctx.lineTo(x + s, y + s);
+          ctx.moveTo(x + s, y - s);
+          ctx.lineTo(x - s, y + s);
           ctx.stroke();
         } else {
           ctx.beginPath();
-          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.arc(x, y, 5 * scale, 0, Math.PI * 2);
           ctx.fill();
         }
         
         if (note.isAccent) {
           ctx.beginPath();
-          ctx.moveTo(x - 4, y - 12);
-          ctx.lineTo(x + 4, y - 10);
-          ctx.lineTo(x - 4, y - 8);
+          const s = scale;
+          ctx.moveTo(x - 4*s, y - 12*s);
+          ctx.lineTo(x + 4*s, y - 10*s);
+          ctx.lineTo(x - 4*s, y - 8*s);
           ctx.stroke();
         }
         
         if (note.sticking) {
-          ctx.font = '10px Arial';
+          ctx.font = `${10 * scale}px Arial`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           
@@ -168,10 +187,13 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
             ctx.fillStyle = '#fff';
             ctx.fillText(note.sticking, x, y);
           } else {
-            ctx.fillStyle = '#000';
+            ctx.fillStyle = color;
             ctx.fillText(note.sticking, x, staffTop + 50);
           }
         }
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
       }
       
       animationFrameId = requestAnimationFrame(render);
@@ -184,7 +206,7 @@ export const RhythmGrid = ({ sequence, correlator }: RhythmGridProps) => {
       resizeObserver.disconnect();
       canvas.removeEventListener('itp-correlator-mock', onCorrelatorMock);
     };
-  }, [sequence, correlator]);
+  }, [sequence, correlator, startPerfMs]);
 
   return (
     <canvas 

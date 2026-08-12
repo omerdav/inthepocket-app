@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ContentUnit, DrumType as DataDrumType } from '../../data/types'
 import { DRUM_TYPE_TO_DISPLAY_NAME } from '../../data/zoneNames'
 import { RhythmGrid, type DrillSequence, type DrumType as GridDrumType } from './RhythmGrid'
+import { BalanceMeter } from './BalanceMeter'
+import { BalanceTracker } from '../../session/balance'
 import { GrooveCircle } from '../canvas/GrooveCircle'
 import { categoriseTiming } from '../../workers/timingBands'
 import { midiEngine, type HitEvent } from '../../audio/midi'
@@ -57,6 +59,8 @@ export function DrillSession({ unit, worker }: Props) {
   const runnerRef = useRef<DrillRunner | null>(null)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const grooveCircleRef = useRef<GrooveCircle | null>(null)
+  const balanceTrackerRef = useRef(new BalanceTracker())
+  const hasHandContent = unit.sequence.some(n => n.sticking === 'L' || n.sticking === 'R')
 
   useEffect(() => {
     if (canvasContainerRef.current && !grooveCircleRef.current) {
@@ -98,13 +102,21 @@ export function DrillSession({ unit, worker }: Props) {
           const startAudioMs = correlator.mapHitTime(startPerfMs) * 1000;
           
           let minAbs = Infinity;
+          let matchedNote = null;
           for (let i = 0; i < unit.sequence.length; i++) {
              const targetAudioMs = startAudioMs + unit.sequence[i].targetTimeMs;
              const diff = hitAudioMs - targetAudioMs;
              if (Math.abs(diff) < minAbs) {
                minAbs = Math.abs(diff);
                deltaMs = diff;
+               matchedNote = unit.sequence[i];
              }
+          }
+          
+          // R3: "If you cannot attribute a hit to a note confidently, exclude it from the statistics rather than guessing."
+          // We assume it's confident if it's within 150% of the timing window (so it doesn't cross over to the next note usually)
+          if (matchedNote && Math.abs(deltaMs) <= unit.passCriteria.timingWindowMs * 1.5) {
+            balanceTrackerRef.current.registerHit(matchedNote.sticking, hit.velocity);
           }
         }
 
@@ -156,6 +168,7 @@ export function DrillSession({ unit, worker }: Props) {
     setResult(null)
     setCountInBeat(0)
     setHardwareBlock(null)
+    balanceTrackerRef.current.reset()
     
     // Unlock audio immediately from the gesture, before any async storage reads
     // that might consume the transient user activation window.
@@ -324,7 +337,8 @@ export function DrillSession({ unit, worker }: Props) {
 
       {/* Zone 3 — notation */}
       <footer class="drill-bottom">
-        <RhythmGrid sequence={toGridSequence(unit)} />
+        <BalanceMeter tracker={balanceTrackerRef.current} hasHandContent={hasHandContent} />
+        <RhythmGrid sequence={toGridSequence(unit)} startPerfMs={startPerfMs} />
       </footer>
 
       {busy && <div class="drill-busy-veil" aria-hidden="true" />}
