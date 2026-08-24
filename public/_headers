@@ -1,0 +1,29 @@
+# Cross-origin isolation. Required, not optional.
+#
+# SharedArrayBuffer is the transport for the timing data shared between the
+# main thread, the AudioWorklet and the ScoringWorker. Browsers only expose it
+# to a cross-origin-isolated context, which needs BOTH headers below. Without
+# them `new SharedArrayBuffer(...)` throws and the app does not start.
+#
+# vite.config.ts sets these for `vite dev` and `vite preview`. That plugin does
+# NOT run in production — a static host serves dist/ and knows nothing about
+# Vite. This file is how the host is told.
+#
+# Netlify and Cloudflare Pages read public/_headers automatically; Vite copies
+# it to dist/ verbatim. On any other host it is inert documentation and the
+# equivalent must be configured by hand:
+#
+#   nginx     add_header Cross-Origin-Opener-Policy same-origin;
+#             add_header Cross-Origin-Embedder-Policy require-corp;
+#   Apache    Header set Cross-Origin-Opener-Policy "same-origin"
+#             Header set Cross-Origin-Embedder-Policy "require-corp"
+#   Vercel    "headers" in vercel.json
+#
+# This file does not decide D3 (hosting). It makes two of the candidates work
+# and records what the rest have to do.
+#
+# Verify against a real build with `npm run check:isolation`.
+
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
