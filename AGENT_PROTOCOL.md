@@ -223,7 +223,7 @@ The 30 drill-audit lines assert a verdict per drill per run type, and none of th
 
 ### Known intermittents — report as observed, do not fix
 
-- **P-1** — the audio clock stalls under load. Shows as `"Audio System Interrupted"` on the results screen.
+- **P-1** — the audio clock wedges (renders one buffer and stops dead). Shows as `"Audio System Interrupted"` on the results screen. Previously theorized as a starved thread, but proven to be a wedged output stream.
 - **P-5** — the Groove Circle live-hit test returns an undefined colour. **Four sightings across four sessions.** Two hypotheses eliminated, and it survived T-020's migration unchanged — it now presents as an undefined `dataset.lastHitColor` rather than an undefined global, so the mechanism was never the cause. Lives in `GrooveCircle` / `DrillSession`; if you are working there, read the register entry before attributing a failure to your change.
 
 If either fires, say so and move on. Do not chase them, and do not let them stop you reporting your own result honestly.
