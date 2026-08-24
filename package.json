@@ -12,7 +12,8 @@
     "test:e2e": "playwright test --project=product",
     "test:sim": "playwright test --project=simulation",
     "check:isolation": "npm run build && node scripts/check-isolation.mjs",
-    "check:offline": "npm run build && node scripts/check-precache.mjs"
+    "check:offline": "npm run build && node scripts/check-precache.mjs",
+    "generate:icons": "pwa-assets-generator"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -31,6 +32,7 @@
     "@types/audioworklet": "^0.0.100",
     "@types/node": "^24.13.2",
     "@types/webmidi": "^2.1.0",
+    "@vite-pwa/assets-generator": "^1.0.2",
     "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",

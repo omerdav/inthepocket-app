@@ -53,6 +53,24 @@ for (const [needle, why] of Object.entries(REQUIRED)) {
   }
 }
 
+// Duplicate URLs. Workbox tolerates them only while their revisions agree; the
+// moment two sources disagree it throws add-to-cache-list-conflicting-entries
+// and the worker fails to install, which takes offline down completely. Two
+// sources do feed this list — the glob and the plugin's own manifest/icon
+// injection — so this is a live hazard, not a theoretical one.
+const seen = new Map()
+for (const u of urls) seen.set(u, (seen.get(u) ?? 0) + 1)
+const dupes = [...seen].filter(([, n]) => n > 1)
+if (dupes.length) {
+  for (const [u, n] of dupes) {
+    console.error(`✗ ${u} appears ${n} times in the precache manifest`)
+  }
+  console.error('  Two sources are listing the same asset — see includeAssets vs globPatterns.')
+  failed = true
+} else {
+  console.log('✓ no duplicate precache entries')
+}
+
 // Precaching .woff alongside .woff2 doubles the font download for no benefit;
 // every browser with AudioWorklet takes the .woff2. Catch it coming back.
 const woff = urls.filter((u) => u.endsWith('.woff'))

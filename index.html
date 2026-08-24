@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--
+      Installed-app chrome (8.4). theme-color paints the Android status bar the
+      same near-black as the app, so a drummer glancing down at a tablet on a
+      stand sees one surface rather than a bright bar above a dark app.
+      apple-touch-icon is the iOS home-screen icon; iOS largely ignores the
+      manifest's icons array, so this link is not redundant with it.
+    -->
+    <meta name="theme-color" content="#0a0c14" />
+    <meta name="description" content="Zero-latency practice drills for electronic drummers. Works offline, next to the kit." />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <title>inthepocket-app</title>
   </head>
   <body>
