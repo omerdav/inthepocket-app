@@ -11,7 +11,8 @@ test.describe('Playwright Virtual Drummer Demonstration', () => {
     await page.goto('/');
 
     // Wire up MidiEngine or a direct WebMIDI listener on the page with a visual HUD
-    const capturedHits = await page.evaluate(() => {
+    // Side effects only: installs window.hitsLog and the on-page HUD.
+    await page.evaluate(() => {
       const hits: Array<{ note: number; velocity: number; timestamp: number }> = [];
       (window as any).hitsLog = hits;
 
@@ -104,7 +105,8 @@ test.describe('Playwright Virtual Drummer Demonstration', () => {
     await page.goto('/');
 
     // Evaluate MidiEngine directly in the browser page
-    const engineResults = await page.evaluate(async () => {
+    // Side effects only; the assertions below read the page, not this value.
+    await page.evaluate(async () => {
       // Dynamically import MidiEngine from built/served modules or set up test listener
       const events: Array<{ note: number; velocity: number }> = [];
       

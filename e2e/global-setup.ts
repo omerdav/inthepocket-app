@@ -19,7 +19,7 @@ export default function globalSetup() {
     const status = (err as { status?: number }).status
     if (status === 1) {
       throw new Error(
-        'Audio preflight failed: this machine's audio clock is not advancing, so ' +
+        'Audio preflight failed: the audio clock on this machine is not advancing, so ' +
           'every drill would stall. Restart Windows audio (Audiosrv) or reboot, then ' +
           're-run. Nothing in the repo is at fault — see P-1 in the defect register.'
       )

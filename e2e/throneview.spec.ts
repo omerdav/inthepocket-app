@@ -1,5 +1,4 @@
 import { test, expect, dismissFirstRun } from './fixtures/virtual-drummer';
-import { MIDI_NOTE } from '../src/audio/midi';
 
 test.describe('ThroneView & GrooveCircle QA', () => {
   test.beforeEach(async ({ injectVirtualDrummer }) => {
