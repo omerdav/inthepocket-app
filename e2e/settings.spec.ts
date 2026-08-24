@@ -52,6 +52,11 @@ test.describe('Settings Menu UI E2E', () => {
     await page.waitForTimeout(100);
     await expect(menu.locator('.settings-item.focused')).toContainText('Hardware Calibration');
 
+    // Scroll down. T-033 added the engine error log as the last item.
+    await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
+    await page.waitForTimeout(100);
+    await expect(menu.locator('.settings-item.focused')).toContainText('Engine Error Log');
+
     // Scroll down (should wrap back to Blind Mode)
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
     await page.waitForTimeout(100);
@@ -85,6 +90,8 @@ test.describe('Settings Menu UI E2E', () => {
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Metronome
     await page.waitForTimeout(100);
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Hardware Calib
+    await page.waitForTimeout(100);
+    await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Engine Error Log (T-033)
     await page.waitForTimeout(100);
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Blind Mode
     await page.waitForTimeout(100);
