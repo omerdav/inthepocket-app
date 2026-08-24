@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import {
   isSettingsMenuOpen,
@@ -6,6 +6,7 @@ import {
   blindModeThreshold,
   metronomeVolume
 } from '../../state/settings';
+import { errorReporter, type ErrorRecord } from '../../ErrorReporter';
 import './SettingsMenu.css';
 
 const BLIND_THRESHOLDS = [4, 8, 16];
@@ -13,6 +14,9 @@ const METRONOME_VOLUMES = [0, 25, 50, 75, 100];
 
 export function SettingsMenu() {
   const focusedIndex = useSignal(0);
+  const [logExportStatus, setLogExportStatus] = useState('SHOW');
+  const [showLog, setShowLog] = useState(false);
+  const [logs, setLogs] = useState<ErrorRecord[]>([]);
 
   useEffect(() => {
     const handleScrollDown = () => {
@@ -25,7 +29,7 @@ export function SettingsMenu() {
         nextIndex = 2;
       }
       
-      if (nextIndex > 3) {
+      if (nextIndex > 4) {
         nextIndex = 0;
       }
       
@@ -46,7 +50,47 @@ export function SettingsMenu() {
         metronomeVolume.value = METRONOME_VOLUMES[(idx + 1) % METRONOME_VOLUMES.length];
       } else if (current === 3) {
         console.log("Enter Calibration Mode");
+      } else if (current === 4) {
+        void toggleErrorLog();
       }
+    };
+
+    /**
+     * Show the log, and try the clipboard as a convenience.
+     *
+     * ON SCREEN FIRST, DELIBERATELY. The clipboard cannot be relied on here:
+     * `navigator.clipboard.writeText` needs a focused document and, on
+     * Firefox — a supported browser per D5 — transient user activation. A
+     * snare hit is not user activation as far as the browser is concerned, so
+     * the copy can fail through no fault of the drummer. Measured: calling it
+     * without focus returns NotAllowedError, "Document is not focused."
+     *
+     * A drummer on a stool with a tablet on a stand also has nowhere obvious
+     * to paste JSON. Reading it off the screen — or photographing it — is the
+     * path that always works, so the copy is the bonus, not the mechanism.
+     */
+    const toggleErrorLog = async () => {
+      if (showLog) {
+        setShowLog(false);
+        return;
+      }
+      let entries: ErrorRecord[] = [];
+      try {
+        entries = await errorReporter.getLogs();
+      } catch (err) {
+        console.error('Failed to read error log', err);
+      }
+      setLogs(entries);
+      setShowLog(true);
+
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(entries, null, 2));
+        setLogExportStatus('COPIED');
+      } catch {
+        // Expected in several real situations. The list below is the answer.
+        setLogExportStatus('ON SCREEN');
+      }
+      setTimeout(() => setLogExportStatus('SHOW'), 2000);
     };
 
     window.addEventListener('stick-scroll-down', handleScrollDown);
@@ -88,6 +132,30 @@ export function SettingsMenu() {
           <span>Hardware Calibration</span>
           <span>[ START ]</span>
         </div>
+
+        <div class={`settings-item ${focusedIndex.value === 4 ? 'focused' : ''}`}>
+          <span>Engine Error Log</span>
+          <span>[ {logExportStatus} ]</span>
+        </div>
+
+        {showLog && (
+          <div class="error-log" data-testid="error-log">
+            {logs.length === 0 && <div class="error-log-empty">No errors recorded.</div>}
+            {logs.map((entry) => (
+              <div class="error-log-entry" key={entry.id}>
+                <div class="error-log-message">
+                  {entry.message}
+                  {entry.count > 1 && <span class="error-log-count"> x{entry.count}</span>}
+                </div>
+                <div class="error-log-meta">
+                  {new Date(entry.timestamp).toLocaleString()} · {entry.phase}
+                  {entry.drillId ? ` · ${entry.drillId}` : ''}
+                  {entry.midiConnected ? ' · kit connected' : ' · no kit'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
