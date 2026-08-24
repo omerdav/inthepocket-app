@@ -1,4 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+/*
+ * Self-hosted fonts (8.2). These were a Google Fonts @import until 2026-08-24.
+ *
+ * The reason is offline, not COEP. Google serves
+ * `Cross-Origin-Resource-Policy: cross-origin` on both the stylesheet and the
+ * woff2 files, so `require-corp` never blocked them — the Release Plan said it
+ * did, and that was wrong. What a remote @import does break is an app whose
+ * whole point is working without a network: it is render-blocking, it needs
+ * DNS + TLS to a third party on every cold start, and a PWA launched from the
+ * home screen with no connection falls back to system fonts mid-session.
+ *
+ * Latin subsets only, matching the weights actually used below:
+ * Outfit 400/600/800 and JetBrains Mono 400/700. 96KB total, precacheable by
+ * Workbox (8.3) as ordinary same-origin assets rather than opaque responses.
+ *
+ * `src/__tests__/no-external-resources.test.ts` fails if a remote URL returns.
+ */
+@import '@fontsource/outfit/latin-400.css';
+@import '@fontsource/outfit/latin-600.css';
+@import '@fontsource/outfit/latin-800.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-700.css';
 
 :root {
   --bg-dark: #0a0c14;

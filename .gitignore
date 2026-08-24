@@ -30,3 +30,6 @@ blob-report
 playwright/.cache
 coverage
 e2e/simulation/reports/
+
+# Machine-local Claude Code settings; .claude/launch.json IS shared.
+.claude/settings.local.json
