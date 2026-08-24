@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test --project=product",
     "test:sim": "playwright test --project=simulation",
-    "check:isolation": "npm run build && node scripts/check-isolation.mjs"
+    "check:isolation": "npm run build && node scripts/check-isolation.mjs",
+    "check:offline": "npm run build && node scripts/check-precache.mjs"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -20,6 +21,8 @@
     "preact": "^10.29.7",
     "tone": "^15.1.22",
     "webmidi": "^3.1.16",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
     "workbox-window": "^7.4.1"
   },
   "devDependencies": {
@@ -31,6 +34,8 @@
     "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
-    "vitest": "^4.1.10"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10",
+    "workbox-build": "^7.4.1"
   }
 }
