@@ -59,3 +59,42 @@
   font-weight: bold;
   color: #ffcc00;
 }
+
+/*
+ * Engine error log (T-033 R3). Read from a stool at 1.5-2.5m, so the message
+ * stays at body size and only the metadata shrinks; the whole block scrolls
+ * rather than truncating, because a message cut off mid-sentence is the one
+ * piece of evidence we asked the drummer to bring back.
+ */
+.error-log {
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-top: 12px;
+  border-top: 1px solid var(--border-glow, rgba(0, 255, 245, 0.2));
+  padding-top: 12px;
+}
+
+.error-log-empty {
+  opacity: 0.6;
+  padding: 8px 0;
+}
+
+.error-log-entry {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.error-log-message {
+  word-break: break-word;
+}
+
+.error-log-count {
+  color: var(--accent-magenta, #ff007f);
+  font-weight: 700;
+}
+
+.error-log-meta {
+  font-size: 0.8em;
+  opacity: 0.65;
+  margin-top: 4px;
+}

@@ -2,6 +2,9 @@ import { render } from 'preact'
 import './index.css'
 import { App } from './app.tsx'
 import { registerServiceWorker } from './registerServiceWorker.ts'
+import { errorReporter } from './ErrorReporter.ts'
+
+errorReporter.init()
 
 render(<App />, document.getElementById('app')!)
 

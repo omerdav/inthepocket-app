@@ -13,13 +13,14 @@
  */
 
 export const DB_NAME = 'inthepocket'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export const STORE_PROGRESSION = 'progression'
 export const STORE_TELEMETRY = 'telemetry'
 export const STORE_PROFILES = 'profiles'
+export const STORE_ERRORS = 'errors'
 
-export const ALL_STORES = [STORE_PROGRESSION, STORE_TELEMETRY, STORE_PROFILES] as const
+export const ALL_STORES = [STORE_PROGRESSION, STORE_TELEMETRY, STORE_PROFILES, STORE_ERRORS] as const
 export type StoreName = (typeof ALL_STORES)[number]
 
 export interface KeyValueStore {

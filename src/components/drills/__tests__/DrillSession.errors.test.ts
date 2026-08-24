@@ -6,6 +6,7 @@ import { h, render } from 'preact'
 import { DrillSession } from '../DrillSession'
 import { DrillRunner } from '../../../session/DrillRunner'
 import { audioEngine } from '../../../audio/AudioEngine'
+import { errorReporter } from '../../../ErrorReporter'
 
 vi.mock('../../../audio/AudioEngine', () => ({
   audioEngine: {
@@ -29,23 +30,29 @@ vi.mock('../../../audio/midi', async (importOriginal) => {
   }
 })
 
-vi.mock('../../../store', () => ({
-  profilesStore: {
-    load: vi.fn().mockResolvedValue({ noteMap: {} })
-  },
-  progressionStore: {
-    load: vi.fn().mockResolvedValue({})
-  },
-  isMastered: vi.fn().mockReturnValue(false)
-}))
+vi.mock('../../../store', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    profilesStore: {
+      load: vi.fn().mockResolvedValue({ noteMap: {} })
+    },
+    progressionStore: {
+      load: vi.fn().mockResolvedValue({})
+    },
+    isMastered: vi.fn().mockReturnValue(false)
+  }
+})
 
 describe('DrillSession error handling', () => {
   let container: HTMLDivElement
 
-  beforeEach(() => {
+  beforeEach(async () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     vi.clearAllMocks()
+    errorReporter.init()
+    await errorReporter.clearLogs()
   })
 
   afterEach(() => {
@@ -111,5 +118,11 @@ describe('DrillSession error handling', () => {
     expect(container.querySelector('[data-testid="drill-result"]')).toBeTruthy()
     expect(container.querySelector('[data-testid="result-diagnosis"]')?.textContent).toContain('Audio System Interrupted')
     expect(container.querySelector('.result-detail')?.textContent).toContain('browser audio engine stalled')
+
+    const logs = await errorReporter.getLogs()
+    expect(logs.length).toBeGreaterThan(0)
+    expect(logs[0].message).toContain('AudioContext clock is not advancing')
+    expect(logs[0].drillId).toBe('test')
+    expect(logs[0].phase).not.toBe('idle')
   })
 })

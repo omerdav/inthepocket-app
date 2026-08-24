@@ -21,6 +21,7 @@ import { pendingLaunchId } from '../../state/routing'
 import { recordCompletion } from '../../session/recordCompletion'
 import { progressionStore, isMastered, profilesStore } from '../../store'
 import { checkHardwareCapability, type HardwareCapabilityResult } from '../../session/hardware'
+import { errorReporter } from '../../ErrorReporter'
 import './DrillSession.css'
 
 /** The grid renders three staff positions; map the zone model onto them. */
@@ -192,6 +193,9 @@ export function DrillSession({ unit, worker }: Props) {
     try {
       const r = await runnerRef.current!.run(unit)
       setResult(r)
+      if (r.error) {
+        errorReporter.logDrillError(r.error)
+      }
       // Persist before refreshing the badge, so the badge reflects stored state.
       await recordCompletion(r, startedAt)
       setMastered(await progressionStore.load().then((s) => isMastered(s, unit.id)))
@@ -224,6 +228,7 @@ export function DrillSession({ unit, worker }: Props) {
           struckZones: new Int8Array(0),
           error: 'audio-stall',
         })
+        errorReporter.logDrillError('audio-stall', msg)
         window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'complete', unitId: unit.id } }))
       }
     }
