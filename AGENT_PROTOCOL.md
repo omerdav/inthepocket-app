@@ -211,11 +211,15 @@ A task is not green unless it matches or beats these:
 | | |
 |---|---|
 | `npm run build` | clean (`tsc -b && vite build`) |
-| `npm test` | **142 passing** |
-| `npm run test:e2e` | **83 passing** (product project) |
+| `npm test` | **172 passing** |
+| `npm run test:e2e` | **87 passing** (product project), ~10.5 min |
+| `npm run check:isolation` | both COOP/COEP headers on the built bundle |
+| `npm run check:offline` | 18 precache entries, worklet and scoring worker present |
 | drill audit | **30 run lines**, 31 tests including the boundary guard |
 
-`npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of those 80 tests. Run both, paste both.
+Verified together on 2026-08-24. **`tsc -b` does not cover `e2e/`** — nothing does, see H-9 — so a syntax error there survives every check above and surfaces only when Playwright compiles it, ten minutes in.
+
+`npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of those 87 tests. Run both, paste both.
 
 ### The audit is the guard
 
@@ -224,6 +228,9 @@ The 30 drill-audit lines assert a verdict per drill per run type, and none of th
 ### Known intermittents — report as observed, do not fix
 
 - **P-1** — the audio clock wedges (renders one buffer and stops dead). Shows as `"Audio System Interrupted"` on the results screen. Previously theorized as a starved thread, but proven to be a wedged output stream.
+- **P-7** — the Vite dev server dies mid-suite and every spec after it fails with `net::ERR_CONNECTION_REFUSED`. Seen twice: 27 failures once, 38 on 2026-08-24. It reads as a broad application regression across routing, first-run, quickmenu and persistence. **If you see a block of connection-refused failures, the server died — do not start bisecting.**
+- **P-8** — `RhythmGrid` writes layout inside its own `ResizeObserver` callback, emitting one error per second on the real drill screen. 697 in a single suite run. Harmless to the tests; it fills the T-033 error log and burns frame budget.
+- **P-9** — `throneview.spec.ts` G2 Visual Pixel Test flakes at ratio 0.01. Re-run before believing it.
 - **P-5** — the Groove Circle live-hit test returns an undefined colour. **Four sightings across four sessions.** Two hypotheses eliminated, and it survived T-020's migration unchanged — it now presents as an undefined `dataset.lastHitColor` rather than an undefined global, so the mechanism was never the cause. Lives in `GrooveCircle` / `DrillSession`; if you are working there, read the register entry before attributing a failure to your change.
 
 If either fires, say so and move on. Do not chase them, and do not let them stop you reporting your own result honestly.
