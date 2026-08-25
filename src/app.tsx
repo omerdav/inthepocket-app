@@ -12,10 +12,11 @@ import { DrillSession } from './components/drills/DrillSession'
 import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
 import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
-import { HiHatCalibration, isCalibrationOpen, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
+import { HiHatCalibration, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
 import { progressionStore } from './store'
 import { EngineWarmup } from './components/layout/EngineWarmup'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
+import { DiagnosticOverlay } from './components/placement/DiagnosticOverlay'
 import { useSignalEffect } from '@preact/signals'
 
 // E2E Hooks
@@ -311,32 +312,11 @@ export function App() {
     return <EngineWarmup onReady={() => setWarmedUp(true)} />;
   }
 
-  // Finish first-run setup: remember that placement happened, and skip the
-  // calibration prompt entirely if a stored calibration was restored at boot.
-  const completeDiagnostic = async () => {
-    hasCompletedDiagnostic.value = true;
-    await progressionStore.recordPlacement({});
-    if (!(await restoreHiHatCalibration())) isCalibrationOpen.value = true;
-  };
+
 
   return (
     <>
-      {hydrated && !hasCompletedDiagnostic.value && (
-        <div class="diagnostic-overlay" data-testid="diagnostic-overlay" style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
-          background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', 
-          flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <h2>Welcome to In The Pocket</h2>
-          <p>Let's calibrate your drum kit placement.</p>
-          <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
-            <button class="tab-btn active" onClick={completeDiagnostic}>
-              Start Placement Diagnostic
-            </button>
-            <button class="tab-btn" onClick={completeDiagnostic}>Skip</button>
-          </div>
-        </div>
-      )}
+      {hydrated && !hasCompletedDiagnostic.value && <DiagnosticOverlay />}
 
       <HiHatCalibration />
       
