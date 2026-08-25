@@ -19,7 +19,7 @@ Every rule below exists because one of those happened. None of them are ceremony
 
 ---
 
-## 2. The five hard rules
+## 2. The six hard rules
 
 ### Rule 1 — Never weaken a test to make it pass
 
@@ -62,6 +62,25 @@ Every claim of success must be backed by **pasted terminal output** from a comma
 If output is missing, say it is missing. "I did not run this" is an acceptable report. Output that looks right but did not come from the machine is worse than no output at all, because it costs a reviewer a full verification cycle to discover, and it puts every other line in the report in doubt.
 
 > This rule was tightened after a report pasted a ten-line "after" block in which two lines were real output from *different drills*, relabelled. The underlying work was correct; the report was not, and the only way to establish that was to re-run everything by hand — which is precisely the cost this protocol exists to avoid.
+
+---
+
+### Rule 6 — Commit your work before you report it
+
+**Work that is not committed is not delivered.** Before you write your report, commit on your task branch. Report the commit hash.
+
+Not a formality. Four things break when a task is handed back as an uncommitted working tree:
+
+- **Your history is lost.** The reviewer commits your changes for you, so the record says they wrote it. What you tried, what order you did it in, and what you reverted all disappear — and that reasoning is often the most useful part of the work.
+- **The reviewer cannot separate your change from the baseline.** `git diff master..HEAD` is the first thing they run. Against an uncommitted tree it shows nothing, and they have to reconstruct your scope from your prose.
+- **It is fragile.** A stray `git checkout`, `git stash`, or worktree operation destroys it silently. Reviewers here routinely use `git stash push -u` for attribution — that would take your uncommitted work with it.
+- **Nobody can tell whether you finished.** A dirty tree looks the same whether you are done or stopped halfway.
+
+Commit as often as you like. One commit at the end is fine. Zero is not.
+
+If something genuinely cannot be committed — a file you were told not to touch, a generated artefact — say so in the report rather than leaving it loose in the tree, and delete the scratch files you no longer need.
+
+> Added after three consecutive tasks were handed back with every change sitting uncommitted in the worktree. It cost no correctness, because the reviewer committed each one — under their own name, with the dev's reasoning gone.
 
 ---
 
@@ -135,7 +154,7 @@ Report immediately if:
 - a test fails and you believe the test is wrong
 - the spec is ambiguous or contradicts the code
 - the work requires a file outside your scope
-- you cannot make something pass without breaking one of the five rules
+- you cannot make something pass without breaking one of the six rules
 - you find a bug unrelated to your task (report it, do not fix it)
 
 A blocked task reported honestly is a good outcome. A task reported complete that isn't is the failure this protocol exists to prevent.
@@ -152,6 +171,9 @@ End every task with exactly this:
 
 ```markdown
 ## Task: <id> — <title>
+
+### Commit
+<hash> on <branch>   <!-- Rule 6. `git log --oneline master..HEAD`. Must not be empty. -->
 
 ### What I changed
 - <file>: <one line on what and why>
