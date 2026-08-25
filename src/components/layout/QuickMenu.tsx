@@ -1,9 +1,11 @@
 import { useSignal } from '@preact/signals';
 import { sessionPhase, isQuickMenuOpen, type SessionPhase } from '../../state/session';
-import { sectionsForPhase, PHASE_EMPTY_STATE, type DrillEntry } from '../../data/registry';
+import { sectionsForPhase, PHASE_EMPTY_STATE, type DrillEntry, getEntry } from '../../data/registry';
 import { currentDrillId, navigateToDrill } from '../../state/routing';
 import './QuickMenu.css';
 import { useEffect, useRef } from 'preact/hooks';
+import { useProgression } from '../progression/useProgression';
+import { getProgressionRecommendation } from '../progression/selection';
 
 const PHASES: SessionPhase[] = ['learn', 'practice', 'fun'];
 const PHASE_LABEL: Record<SessionPhase, string> = {
@@ -26,7 +28,8 @@ const PHASE_LABEL: Record<SessionPhase, string> = {
  */
 type NavItem =
   | { kind: 'tab'; phase: SessionPhase }
-  | { kind: 'drill'; entry: DrillEntry };
+  | { kind: 'drill'; entry: DrillEntry }
+  | { kind: 'next-drill'; entry: DrillEntry };
 
 export function QuickMenu() {
   const focusIndex = useSignal(PHASES.indexOf('practice'));
@@ -35,9 +38,14 @@ export function QuickMenu() {
   const phase = sessionPhase.value;
   const sections = sectionsForPhase(phase);
   const emptyState = PHASE_EMPTY_STATE[phase];
+  
+  const progression = useProgression();
+  const rec = progression ? getProgressionRecommendation(progression) : null;
+  const nextDrillEntry = rec?.nextDrillId ? getEntry(rec.nextDrillId) : null;
 
   const navItems: NavItem[] = [
     ...PHASES.map((p) => ({ kind: 'tab' as const, phase: p })),
+    ...(phase === 'practice' && nextDrillEntry ? [{ kind: 'next-drill' as const, entry: nextDrillEntry }] : []),
     ...sections.flatMap((s) => s.entries.map((entry) => ({ kind: 'drill' as const, entry }))),
   ];
 
@@ -102,6 +110,39 @@ export function QuickMenu() {
           <p className="quick-menu-empty" data-testid="phase-empty-state">
             {emptyState}
           </p>
+        )}
+
+        {phase === 'practice' && rec && (
+          <div className="progression-summary" data-testid="progression-summary" style={{ padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginBottom: '16px' }}>
+            <div data-testid="streak" style={{ marginBottom: '8px', fontWeight: 'bold' }}>
+              Practice Streak: {rec.streak.current} days (Best: {rec.streak.longest})
+            </div>
+            <div className="progression-depths" style={{ display: 'flex', gap: '16px', fontSize: '0.9em', color: '#ccc' }}>
+              <div data-testid="depth-timing">Timing: {rec.categoryDepths.timing}</div>
+              <div data-testid="depth-dynamics">Dynamics: {rec.categoryDepths.dynamics}</div>
+              <div data-testid="depth-independence">Independence: {rec.categoryDepths.independence}</div>
+            </div>
+          </div>
+        )}
+
+        {phase === 'practice' && nextDrillEntry && (
+          <div className="quick-menu-section" data-testid="recommended-section">
+            <h3 className="sticky-label" style={{ color: '#4caf50' }}>Play Next</h3>
+            <ul>
+              {(() => {
+                const isFocused = navItems[focusIndex.value]?.kind === 'next-drill';
+                return (
+                  <li
+                    className={`menu-item ${isFocused ? 'selected' : ''}`}
+                    onClick={() => navigateToDrill(nextDrillEntry.unit.id, { autoStart: true })}
+                    data-testid="menu-item-next-drill"
+                  >
+                    {nextDrillEntry.unit.name}
+                  </li>
+                );
+              })()}
+            </ul>
+          </div>
         )}
 
         {sections.map((section) => (
