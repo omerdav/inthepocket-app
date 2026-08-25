@@ -206,6 +206,16 @@ export function DrillSession({ unit, worker }: Props) {
         setAudioLocked(true)
         window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'idle', unitId: unit.id } }))
       } else {
+        // BACKSTOP, not duplication. DrillRunner now catches the failures it can
+        // name — kit-disconnected, tab-hidden, audio-stall, metronome — and
+        // returns a result with a specific message. But `run()` can still throw
+        // before any of that: audio refusing to unlock, the engine failing to
+        // initialise, or something nobody has thought of yet.
+        //
+        // Whatever happens, the drummer must be told something. Removing this
+        // and trusting DrillRunner to cover every case is what broke the two
+        // tests guarding T-017 — both mock `run()` to reject outright, which is
+        // exactly the shape of the failures this branch exists for.
         let detail = 'The drill could not complete because the browser audio engine stalled or failed to start. Please try again.'
         if (msg.includes('Metronome did not start')) {
           detail = 'The metronome failed to start. Please try again.'
@@ -214,11 +224,7 @@ export function DrillSession({ unit, worker }: Props) {
           unitId: unit.id,
           passed: false,
           accuracyPercent: 0,
-          diagnosis: {
-            headline: 'Audio System Interrupted',
-            detail,
-            beats: [],
-          },
+          diagnosis: { headline: 'Audio System Interrupted', detail, beats: [] },
           numTargets: unit.sequence.length,
           numHits: 0,
           categories: new Int8Array(0),
@@ -338,7 +344,7 @@ export function DrillSession({ unit, worker }: Props) {
             data-error={result.error || ''}
           >
             <div class="result-verdict">
-              {result.passed ? 'Passed' : (result.error === 'audio-stall' ? 'Interrupted' : 'Not yet')}
+              {result.passed ? 'Passed' : (result.error ? 'Interrupted' : 'Not yet')}
             </div>
             <p class="result-headline" data-testid="result-diagnosis">
               {result.diagnosis.headline}

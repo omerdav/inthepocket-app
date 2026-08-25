@@ -203,6 +203,11 @@ export class MidiEngine {
     return this._initialized
   }
 
+  /** True if at least one MIDI input is currently connected. */
+  get isKitConnected(): boolean {
+    return this._initialized && WebMidi.inputs.length > 0
+  }
+
   /** Current hi-hat pedal value (0-127). */
   get cc4Value(): number {
     return this._cc4Value
@@ -283,8 +288,34 @@ export class MidiEngine {
       const input = WebMidi.inputs[i]
       input.addListener('noteon', this._boundNoteOn)
       input.addListener('controlchange', this._boundControlChange)
-      this._attachedInputs[i] = input
+      this._attachedInputs.push(input)
     }
+
+    WebMidi.addListener('connected', (e) => {
+      if (e.port.type === 'input') {
+        const input = e.port as Input
+        // Avoid duplicate attachment
+        if (!this._attachedInputs.includes(input)) {
+          input.addListener('noteon', this._boundNoteOn!)
+          input.addListener('controlchange', this._boundControlChange!)
+          this._attachedInputs.push(input)
+        }
+      }
+    })
+
+    WebMidi.addListener('disconnected', (e) => {
+      if (e.port.type === 'input') {
+        const input = e.port as Input
+        const idx = this._attachedInputs.indexOf(input)
+        if (idx >= 0) {
+          input.removeListener('noteon', this._boundNoteOn!)
+          if (this._boundControlChange) {
+            input.removeListener('controlchange', this._boundControlChange)
+          }
+          this._attachedInputs.splice(idx, 1)
+        }
+      }
+    })
 
     this._initialized = true
   }
@@ -308,6 +339,13 @@ export class MidiEngine {
         }
       }
     }
+    
+    // WebMidi library provides removeListener but since we use anonymous arrow functions 
+    // we would need to store them. However, WebMidi.removeListener without second arg 
+    // removes all listeners for that event, which is fine since MidiEngine is a singleton.
+    WebMidi.removeListener('connected')
+    WebMidi.removeListener('disconnected')
+
     this._attachedInputs.length = 0
     this._boundNoteOn = null
     this._boundControlChange = null

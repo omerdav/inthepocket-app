@@ -43,6 +43,7 @@ export function buildSessionRecord(
 }
 
 export async function recordCompletion(result: DrillResult, startedAt: number): Promise<void> {
+  if (result.error) return // Do not record interrupted or cancelled sessions.
   await telemetryStore.record(buildSessionRecord(result, startedAt))
   await progressionStore.recordDrillResult({
     drillId: result.unitId,
