@@ -36,6 +36,58 @@ describe('MidiEngine', () => {
     ;(engine as any)._handleNoteOn(event)
   }
 
+  describe('per-kit note mapping (7.3, P-3)', () => {
+    it('translates a Roland closed hi-hat into the canonical note', () => {
+      // Note 22 means nothing to the default Alesis layout. Before this, the
+      // pad did nothing at all and the drummer got no indication why.
+      const hits: HitEvent[] = []
+      engine.onHit((h) => hits.push({ ...h }))
+      engine.setNoteMap({ 'hihat-closed': 22 })
+
+      triggerNoteOn(22, 1000)
+
+      expect(hits).toHaveLength(1)
+      expect(hits[0].note).toBe(MIDI_NOTE.HI_HAT_CLOSED)
+    })
+
+    it('drops an unmapped pad and says so instead of failing silently', () => {
+      const hits: HitEvent[] = []
+      const unrecognised: number[] = []
+      engine.onHit((h) => hits.push({ ...h }))
+      engine.onUnrecognisedNote((n) => unrecognised.push(n))
+      engine.setNoteMap(null)
+
+      triggerNoteOn(99, 1000)
+
+      expect(hits, 'an unknown pad must not enter the hit stream').toHaveLength(0)
+      expect(unrecognised, 'but it must be reported, not swallowed').toEqual([99])
+    })
+
+    it('still delivers pads the profile does not name', () => {
+      // Mapping one pad must not break the other five.
+      const hits: HitEvent[] = []
+      engine.onHit((h) => hits.push({ ...h }))
+      engine.setNoteMap({ 'hihat-closed': 22 })
+
+      triggerNoteOn(MIDI_NOTE.KICK, 1000)
+
+      expect(hits).toHaveLength(1)
+      expect(hits[0].note).toBe(MIDI_NOTE.KICK)
+    })
+
+    it('gives the kit mapper the raw note, not the translated one', () => {
+      // The mapper has to learn what a pad sends, so it cannot use the
+      // canonical stream — a re-mapped pad would arrive already translated.
+      const raw: number[] = []
+      engine.onRawNote((n) => raw.push(n))
+      engine.setNoteMap({ 'hihat-closed': 22 })
+
+      triggerNoteOn(22, 1000)
+
+      expect(raw).toEqual([22])
+    })
+  })
+
   // Helper to trigger handleControlChange
   const triggerControlChange = (controller: number, value: number, timestamp: number) => {
     const event = {

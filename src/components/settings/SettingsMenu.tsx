@@ -7,6 +7,7 @@ import {
   metronomeVolume
 } from '../../state/settings';
 import { errorReporter, type ErrorRecord } from '../../ErrorReporter';
+import { isKitMapperOpen } from './KitMapper';
 import './SettingsMenu.css';
 
 const BLIND_THRESHOLDS = [4, 8, 16];
@@ -49,7 +50,7 @@ export function SettingsMenu() {
         const idx = METRONOME_VOLUMES.indexOf(metronomeVolume.value);
         metronomeVolume.value = METRONOME_VOLUMES[(idx + 1) % METRONOME_VOLUMES.length];
       } else if (current === 3) {
-        console.log("Enter Calibration Mode");
+        isKitMapperOpen.value = true;
       } else if (current === 4) {
         void toggleErrorLog();
       }
@@ -129,7 +130,7 @@ export function SettingsMenu() {
         </div>
 
         <div class={`settings-item ${focusedIndex.value === 3 ? 'focused' : ''}`}>
-          <span>Hardware Calibration</span>
+          <span>Map My Kit</span>
           <span>[ START ]</span>
         </div>
 
