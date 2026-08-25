@@ -46,10 +46,13 @@ test.describe('ThroneView & GrooveCircle QA', () => {
     await page.goto('/?dev=1');
     await dismissFirstRun(page);
     
+    await page.clock.install({ time: 1000 });
+    
     await page.evaluate(async () => {
-      document.querySelector('[data-testid="groove-circle-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-simulate-hit', { detail: { type: 'perfect', timeMs: undefined, noFlush: false } }));
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); // Wait 2 frames for safety
+      document.querySelector('[data-testid="groove-circle-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-simulate-hit', { detail: { type: 'perfect', timeMs: 1000, noFlush: false } }));
     });
+    
+    await page.clock.pauseAt(1016);
 
     const canvas = page.locator('canvas').first();
     await expect(canvas).toHaveScreenshot('g2-perfect-glow.png');

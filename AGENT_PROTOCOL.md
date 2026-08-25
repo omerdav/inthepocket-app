@@ -233,7 +233,7 @@ A task is not green unless it matches or beats these:
 | | |
 |---|---|
 | `npm run build` | clean (`tsc -b && vite build`) |
-| `npm test` | **172 passing** |
+| `npm test` | **179 passing** |
 | `npm run test:e2e` | **88 passing** (product project), ~10.6 min |
 | `npm run check:isolation` | both COOP/COEP headers on the built bundle |
 | `npm run check:offline` | 18 precache entries, worklet and scoring worker present |
@@ -249,9 +249,8 @@ The 30 drill-audit lines assert a verdict per drill per run type, and none of th
 
 ### Known intermittents — report as observed, do not fix
 
-- **P-1** — the audio clock wedges (renders one buffer and stops dead). Shows as `"Audio System Interrupted"` on the results screen. Previously theorized as a starved thread, but proven to be a wedged output stream.
+- **P-1** — the audio clock wedges (renders one buffer and stops dead). Shows as `"Audio System Interrupted"` on the results screen. Proven to be a wedged output stream, not a starved thread. **It can start mid-suite**, after the preflight has already passed — the preflight is a gate, not a monitor. **A suite running much longer than ~11 minutes is a symptom**: check `node scripts/check-audio.mjs` before waiting it out. Transient and self-healing, so a green run means the window is closed, not that the fault is gone.
 - **P-7** — the Vite dev server dies mid-suite and every spec after it fails with `net::ERR_CONNECTION_REFUSED`. Seen twice: 27 failures once, 38 on 2026-08-24. It reads as a broad application regression across routing, first-run, quickmenu and persistence. **If you see a block of connection-refused failures, the server died — do not start bisecting.**
-- **P-9** — `throneview.spec.ts` G2 Visual Pixel Test fails at **exactly 497 pixels, ratio 0.01, three times running**. Not noise — two discrete render states. Re-run before believing it.
 
 If any of these fires, say so and move on. Do not chase them, and do not let them stop you reporting your own result honestly.
 

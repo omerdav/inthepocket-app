@@ -13,6 +13,8 @@ import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
 import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
 import { HiHatCalibration, isCalibrationOpen, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
+import { KitMapper } from './components/settings/KitMapper'
+import { UnrecognisedPadHint } from './components/settings/UnrecognisedPadHint'
 import { progressionStore } from './store'
 import { EngineWarmup } from './components/layout/EngineWarmup'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
@@ -327,6 +329,8 @@ export function App() {
         <DiagnosticOverlay worker={scoringWorker} onComplete={completeDiagnostic} />
       )}
 
+      <KitMapper />
+      <UnrecognisedPadHint />
       <HiHatCalibration />
       
       <ThroneView
