@@ -206,30 +206,9 @@ export function DrillSession({ unit, worker }: Props) {
         setAudioLocked(true)
         window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'idle', unitId: unit.id } }))
       } else {
-        let detail = 'The drill could not complete because the browser audio engine stalled or failed to start. Please try again.'
-        if (msg.includes('Metronome did not start')) {
-          detail = 'The metronome failed to start. Please try again.'
-        }
-        setResult({
-          unitId: unit.id,
-          passed: false,
-          accuracyPercent: 0,
-          diagnosis: {
-            headline: 'Audio System Interrupted',
-            detail,
-            beats: [],
-          },
-          numTargets: unit.sequence.length,
-          numHits: 0,
-          categories: new Int8Array(0),
-          offsets: new Float32Array(0),
-          dynamicScores: new Int8Array(0),
-          diagnosticRuleIds: new Uint8Array(0),
-          struckZones: new Int8Array(0),
-          error: 'audio-stall',
-        })
+        // Any other unexpected errors can just be ignored or logged, DrillRunner handles expected stalls.
         errorReporter.logDrillError('audio-stall', msg)
-        window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'complete', unitId: unit.id } }))
+        window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'idle', unitId: unit.id } }))
       }
     }
   }
@@ -338,7 +317,7 @@ export function DrillSession({ unit, worker }: Props) {
             data-error={result.error || ''}
           >
             <div class="result-verdict">
-              {result.passed ? 'Passed' : (result.error === 'audio-stall' ? 'Interrupted' : 'Not yet')}
+              {result.passed ? 'Passed' : (result.error ? 'Interrupted' : 'Not yet')}
             </div>
             <p class="result-headline" data-testid="result-diagnosis">
               {result.diagnosis.headline}

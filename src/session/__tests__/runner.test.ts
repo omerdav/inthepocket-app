@@ -23,7 +23,8 @@ vi.mock('../../audio/midi', async (importOriginal) => {
     ...actual,
     midiEngine: {
       onHit: vi.fn().mockReturnValue(vi.fn()), // mock unsubscribe
-      setDrillActive: vi.fn()
+      setDrillActive: vi.fn(),
+      get isKitConnected() { return true; }
     }
   };
 });
@@ -328,18 +329,78 @@ describe('DrillRunner Evaluator Dispatch', () => {
     (DrillRunner.prototype as any)._sleepUntilAudioTime.mockRestore();
 
     vi.useFakeTimers();
-    let errorCaught: Error | null = null;
-    
-    const runPromise = runner.run(unit).catch(e => { errorCaught = e; });
+    const runPromise = runner.run(unit);
     
     // Fast-forward fake timers by >2000ms. performance.now() inside the loop will advance,
     // but the mocked ctx.currentTime stays at 0.
     await vi.runAllTimersAsync();
     
-    await runPromise;
+    const result = await runPromise;
     vi.useRealTimers();
     
-    expect(errorCaught).toBeDefined();
-    expect(errorCaught!.message).toContain('clock is not advancing');
+    expect(result.error).toBe('audio-stall');
+  });
+
+  it('R5: disconnect mid-drill produces kit-disconnected error', async () => {
+    const unit: ContentUnit = {
+      id: 'test-disconnect',
+      name: 'Test',
+      tier: 'Bootcamp',
+      category: 'Dynamics Gate',
+      bpm: 80,
+      sequence: [{ targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false }],
+      passCriteria: { timingWindowMs: 30, timingAccuracyPercent: 90, dynamicContrastDb: 0, consecutiveBarsRequired: 1 },
+      failureDiagnostics: []
+    };
+    const workerMock = {} as Worker;
+    const runner = new DrillRunner(workerMock);
+    (DrillRunner.prototype as any)._sleepUntilAudioTime.mockRestore();
+
+    // Mock midiEngine.isKitConnected to return false
+    const midiMod = await import('../../audio/midi');
+    vi.spyOn(midiMod.midiEngine, 'isKitConnected', 'get').mockReturnValue(false);
+
+    vi.useFakeTimers();
+    const runPromise = runner.run(unit);
+    await vi.runAllTimersAsync();
+    const result = await runPromise;
+    vi.useRealTimers();
+    
+    expect(result.error).toBe('kit-disconnected');
+    expect(result.diagnosis.headline).toBe('Kit Disconnected');
+  });
+
+  it('R5: hiding tab mid-drill produces audio-stall with paused reason', async () => {
+    const unit: ContentUnit = {
+      id: 'test-hidden',
+      name: 'Test',
+      tier: 'Bootcamp',
+      category: 'Dynamics Gate',
+      bpm: 80,
+      sequence: [{ targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false }],
+      passCriteria: { timingWindowMs: 30, timingAccuracyPercent: 90, dynamicContrastDb: 0, consecutiveBarsRequired: 1 },
+      failureDiagnostics: []
+    };
+    const workerMock = {} as Worker;
+    const runner = new DrillRunner(workerMock);
+    (DrillRunner.prototype as any)._sleepUntilAudioTime.mockRestore();
+
+    // Mock document.hidden
+    vi.stubGlobal('document', { hidden: true });
+
+    // Restore midiEngine just in case
+    const midiMod = await import('../../audio/midi');
+    vi.spyOn(midiMod.midiEngine, 'isKitConnected', 'get').mockReturnValue(true);
+
+    vi.useFakeTimers();
+    const runPromise = runner.run(unit);
+    await vi.runAllTimersAsync();
+    const result = await runPromise;
+    vi.useRealTimers();
+    
+    expect(result.error).toBe('audio-stall');
+    expect(result.diagnosis.headline).toBe('Drill Paused');
+    
+    vi.unstubAllGlobals();
   });
 });

@@ -9,7 +9,9 @@ vi.mock('webmidi', () => ({
     inputs: [{
       addListener: vi.fn(),
       removeListener: vi.fn()
-    }]
+    }],
+    addListener: vi.fn(),
+    removeListener: vi.fn()
   }
 }))
 

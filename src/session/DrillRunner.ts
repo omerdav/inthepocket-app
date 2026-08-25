@@ -45,7 +45,7 @@ export interface DrillResult {
   diagnosticRuleIds: Uint8Array
   struckZones: Int8Array
   decouplingScore?: number
-  error?: 'audio-stall' | 'cancelled'
+  error?: 'audio-stall' | 'cancelled' | 'kit-disconnected'
 }
 
 /** Emitted on `window` so both the UI and tests can observe real phase changes. */
@@ -112,49 +112,65 @@ export class DrillRunner {
     const firstBeatSec = await this._awaitFirstBeat(view, ctx)
     const drillStartSec = firstBeatSec + COUNT_IN_BEATS * periodSec
 
-    // --- count-in ---------------------------------------------------------
-    this._emit({ phase: 'count-in', unitId: unit.id })
-    for (let b = 0; b < COUNT_IN_BEATS; b++) {
-      const beatSec = firstBeatSec + b * periodSec
-      await this._sleepUntilAudioTime(ctx, beatSec)
-      if (this._abort) return this._abortResult(unit)
-      this._emit({ phase: 'count-in', unitId: unit.id, countInBeat: b + 1 })
-    }
+    try {
+      // --- count-in ---------------------------------------------------------
+      this._emit({ phase: 'count-in', unitId: unit.id })
+      for (let b = 0; b < COUNT_IN_BEATS; b++) {
+        const beatSec = firstBeatSec + b * periodSec
+        await this._sleepUntilAudioTime(ctx, beatSec)
+        if (this._abort) return this._abortResult(unit, 'cancelled', 'Drill cancelled.', '')
+        this._emit({ phase: 'count-in', unitId: unit.id, countInBeat: b + 1 })
+      }
 
-    // --- collect ----------------------------------------------------------
-    const hits: RecordedHit[] = []
-    const unsubscribe = midiEngine.onHit((hit: HitEvent) => {
-      hits.push({
-        audioTimeMs: correlator.mapHitTime(hit.timestamp) * 1000,
-        velocity: hit.velocity,
-        note: hit.note,
+      // --- collect ----------------------------------------------------------
+      const hits: RecordedHit[] = []
+      const unsubscribe = midiEngine.onHit((hit: HitEvent) => {
+        hits.push({
+          audioTimeMs: correlator.mapHitTime(hit.timestamp) * 1000,
+          velocity: hit.velocity,
+          note: hit.note,
+        })
       })
-    })
-    midiEngine.setDrillActive(true)
+      midiEngine.setDrillActive(true)
 
-    const lastNoteMs = unit.sequence.reduce((max, n) => Math.max(max, n.targetTimeMs), 0)
-    const endSec = drillStartSec + (lastNoteMs + TAIL_MS) / 1000
+      const lastNoteMs = unit.sequence.reduce((max, n) => Math.max(max, n.targetTimeMs), 0)
+      const endSec = drillStartSec + (lastNoteMs + TAIL_MS) / 1000
 
-    // Publish the exact start so the UI (and tests) can align to it.
-    this._emit({
-      phase: 'playing',
-      unitId: unit.id,
-      startPerfMs: this._audioToPerfMs(correlator, drillStartSec),
-    })
+      // Publish the exact start so the UI (and tests) can align to it.
+      this._emit({
+        phase: 'playing',
+        unitId: unit.id,
+        startPerfMs: this._audioToPerfMs(correlator, drillStartSec),
+      })
 
-    await this._sleepUntilAudioTime(ctx, endSec)
+      await this._sleepUntilAudioTime(ctx, endSec)
 
-    unsubscribe()
-    midiEngine.setDrillActive(false)
-    audioEngine.stop()
+      unsubscribe()
+      midiEngine.setDrillActive(false)
+      audioEngine.stop()
 
-    if (this._abort) return this._abortResult(unit)
+      if (this._abort) return this._abortResult(unit, 'cancelled', 'Drill cancelled.', '')
 
-    // --- score ------------------------------------------------------------
-    this._emit({ phase: 'scoring', unitId: unit.id })
-    const result = await this._score(unit, hits, drillStartSec)
-    this._emit({ phase: 'complete', unitId: unit.id })
-    return result
+      // --- score ------------------------------------------------------------
+      this._emit({ phase: 'scoring', unitId: unit.id })
+      const result = await this._score(unit, hits, drillStartSec)
+      this._emit({ phase: 'complete', unitId: unit.id })
+      return result
+    } catch (e: any) {
+      midiEngine.setDrillActive(false)
+      audioEngine.stop()
+      
+      if (e.message === 'kit-disconnected') {
+        return this._abortResult(unit, 'kit-disconnected', 'Kit Disconnected', 'Your drum kit was unplugged mid-drill.')
+      } else if (e.message === 'tab-hidden') {
+        return this._abortResult(unit, 'audio-stall', 'Drill Paused', 'The drill was stopped because the tab was hidden.')
+      } else if (e.message === 'audio-stall') {
+        return this._abortResult(unit, 'audio-stall', 'Audio System Interrupted', 'The browser audio engine stalled.')
+      } else if (e.message.includes('Metronome did not start')) {
+        return this._abortResult(unit, 'audio-stall', 'Audio System Interrupted', 'The metronome failed to start. Please try again.')
+      }
+      throw e
+    }
   }
 
   /** Convert an audio-clock time back to the performance clock. */
@@ -197,7 +213,15 @@ export class DrillRunner {
         lastAudioTime = currentAudioTime;
         lastAdvanceTime = performance.now();
       } else if (performance.now() - lastAdvanceTime > 2000) {
-        throw new Error('AudioContext clock is not advancing. Audio may be locked or failed to start.');
+        throw new Error('audio-stall');
+      }
+
+      if (!midiEngine.isKitConnected) {
+        throw new Error('kit-disconnected');
+      }
+
+      if (typeof document !== 'undefined' && document.hidden) {
+        throw new Error('tab-hidden');
       }
 
       const remainingMs = (targetSec - currentAudioTime) * 1000
@@ -207,13 +231,13 @@ export class DrillRunner {
     }
   }
 
-  private _abortResult(unit: ContentUnit): DrillResult {
+  private _abortResult(unit: ContentUnit, error: DrillResult['error'], headline: string, detail: string): DrillResult {
     this._emit({ phase: 'idle', unitId: unit.id })
     return {
       unitId: unit.id,
       passed: false,
       accuracyPercent: 0,
-      diagnosis: { headline: 'Drill cancelled.', detail: '', beats: [] },
+      diagnosis: { headline, detail, beats: [] },
       numTargets: unit.sequence.length,
       numHits: 0,
       categories: new Int8Array(0),
@@ -222,7 +246,7 @@ export class DrillRunner {
       diagnosticRuleIds: new Uint8Array(0),
       struckZones: new Int8Array(0),
       decouplingScore: undefined,
-      error: 'cancelled',
+      error,
     }
   }
 

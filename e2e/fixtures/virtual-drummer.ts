@@ -2,6 +2,8 @@ import { test as base } from '@playwright/test';
 
 type VirtualDrummerFixtures = {
   injectVirtualDrummer: () => Promise<void>;
+  disconnectKit: () => Promise<void>;
+  connectKit: () => Promise<void>;
   hitDrum: (noteNumber: number, velocity: number, timestampMs?: number) => Promise<void>;
   sendCC: (ccNumber: number, value: number, timestampMs?: number) => Promise<void>;
 };
@@ -58,6 +60,22 @@ export const test = base.extend<VirtualDrummerFixtures>({
 
         // Add a global __virtualDrummer object for testing
         (window as any).__virtualDrummer = {
+          disconnect: () => {
+            mockInputsMap.delete(mockInput.id);
+            if (mockMIDIAccess.onstatechange) {
+              const event = new Event('statechange');
+              (event as any).port = { ...mockInput, state: 'disconnected' };
+              mockMIDIAccess.onstatechange(event);
+            }
+          },
+          connect: () => {
+            mockInputsMap.set(mockInput.id, mockInput);
+            if (mockMIDIAccess.onstatechange) {
+              const event = new Event('statechange');
+              (event as any).port = { ...mockInput, state: 'connected' };
+              mockMIDIAccess.onstatechange(event);
+            }
+          },
           hit: (noteNumber: number, velocity: number, timestampMs = performance.now()) => {
             const data = new Uint8Array([0x90, noteNumber, velocity]);
             
@@ -98,6 +116,24 @@ export const test = base.extend<VirtualDrummerFixtures>({
       });
     };
     await use(injectFn);
+  },
+  
+  disconnectKit: async ({ page }, use) => {
+    const fn = async () => {
+      await page.evaluate(() => {
+        (window as any).__virtualDrummer.disconnect();
+      });
+    };
+    await use(fn);
+  },
+  
+  connectKit: async ({ page }, use) => {
+    const fn = async () => {
+      await page.evaluate(() => {
+        (window as any).__virtualDrummer.connect();
+      });
+    };
+    await use(fn);
   },
   
   hitDrum: async ({ page }, use) => {
