@@ -1,6 +1,6 @@
 import { WebMidi } from 'webmidi'
 import { db, STORE_ERRORS } from './store'
-import { DRILL_PHASE_EVENT, type DrillPhaseDetail } from './session/DrillRunner'
+import { DRILL_PHASE_EVENT, type DrillPhaseDetail, type DrillResult } from './session/DrillRunner'
 
 export interface ErrorRecord {
   id: string
@@ -59,7 +59,7 @@ class ErrorReporter {
     })
   }
 
-  logDrillError(error: 'audio-stall' | 'cancelled', message?: string) {
+  logDrillError(error: DrillResult['error'], message?: string) {
     this.logError(message || `DrillResult.error: ${error}`)
   }
 
