@@ -90,4 +90,27 @@ test.describe('RhythmGrid Component', () => {
     const secondX = await getNoteX();
     expect(secondX).toBe(firstX); // Should not have moved
   });
+
+  test('R-T3: Canvas internal resolution tracks its container width', async ({ page }) => {
+    const canvas = page.locator('[data-testid="rhythm-grid-canvas"]');
+    
+    const initialWidth = await canvas.evaluate((node: HTMLCanvasElement) => node.width);
+    expect(initialWidth).toBeGreaterThan(0);
+    
+    await page.evaluate(() => {
+      const c = document.querySelector('[data-testid="rhythm-grid-canvas"]');
+      if (c && c.parentElement) {
+        c.parentElement.style.width = '400px';
+        c.parentElement.style.maxWidth = '400px';
+      }
+    });
+    
+    // Poll rather than waiting a fixed 100ms. The write is now deferred to
+    // requestAnimationFrame, and a frame is not guaranteed inside any
+    // particular wall-clock window — that is precisely the assumption that
+    // made P-5 flake for five sessions (T-034). Do not reintroduce it here.
+    await expect
+      .poll(async () => canvas.evaluate((node: HTMLCanvasElement) => node.width), { timeout: 2000 })
+      .toBe(400);
+  });
 });

@@ -44,7 +44,14 @@ export const RhythmGrid = ({ sequence, correlator, startPerfMs }: RhythmGridProp
         if (canvas.parentElement && entry.target === canvas.parentElement) {
           const rect = entry.contentRect;
           // Set internal coordinate scale to match display pixels
-          canvas.width = rect.width;
+          const newWidth = Math.round(rect.width);
+          if (canvas.width !== newWidth) {
+            requestAnimationFrame(() => {
+              if (canvasRef.current) {
+                canvasRef.current.width = newWidth;
+              }
+            });
+          }
           // Keep fixed height for the drum staff for now, just stretch horizontally
         }
       }
