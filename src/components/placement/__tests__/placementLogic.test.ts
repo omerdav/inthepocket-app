@@ -68,4 +68,24 @@ describe('placementLogic', () => {
     const depth = calculatePlacement('timing', failedResult);
     expect(depth).toBe('introduction');
   });
+
+  it('returns null when drill is cancelled (skipped)', () => {
+    const cancelledResult: DrillResult = {
+      unitId: 'test',
+      passed: false,
+      accuracyPercent: 0,
+      diagnosis: { headline: '', detail: '', beats: [] },
+      numTargets: 10,
+      numHits: 0,
+      categories: new Int8Array(),
+      offsets: new Float32Array(),
+      dynamicScores: new Int8Array(),
+      diagnosticRuleIds: new Uint8Array(),
+      struckZones: new Int8Array(),
+      error: 'cancelled'
+    };
+
+    const depth = calculatePlacement('timing', cancelledResult);
+    expect(depth).toBeNull();
+  });
 });

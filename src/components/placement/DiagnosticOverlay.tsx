@@ -79,14 +79,21 @@ export function DiagnosticOverlay({ onComplete, worker }: Props) {
   };
 
   const handleSegmentComplete = (r: DrillResult) => {
+    if (r.error === 'cancelled') {
+      void skipDiagnostic();
+      return;
+    }
+
     const currentSegment = DIAGNOSTIC_SEGMENTS[segmentIndex];
     const category = currentSegment.category as SkillCategory;
     const depth = calculatePlacement(category, r);
     
-    setResults(prev => ({
-      ...prev,
-      [category]: depth
-    }));
+    if (depth !== null) {
+      setResults(prev => ({
+        ...prev,
+        [category]: depth
+      }));
+    }
 
     if (segmentIndex < DIAGNOSTIC_SEGMENTS.length - 1) {
       setSegmentIndex(segmentIndex + 1);

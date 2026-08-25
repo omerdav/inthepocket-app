@@ -4,7 +4,11 @@ import { MAX_PLACEMENT_DEPTH, type Depth, type SkillCategory } from '../../store
 export function calculatePlacement(
   category: SkillCategory,
   result: DrillResult
-): Depth {
+): Depth | null {
+  if (result.error === 'cancelled') {
+    return null;
+  }
+
   if (result.error || !result.passed) {
     return 'introduction';
   }
@@ -12,12 +16,20 @@ export function calculatePlacement(
   // To cap at MAX_PLACEMENT_DEPTH (which is 'consolidating'), we will only ever return up to that.
   let depth: Depth = 'introduction';
 
-  if (result.accuracyPercent > 90) {
-    depth = 'consolidating';
-  } else if (result.accuracyPercent > 70) {
-    depth = 'developing';
-  } else {
-    depth = 'introduction';
+  // For now, accuracy percent drives the placement depth for all categories.
+  // The segments themselves are tailored to evaluate the specific category (Timing, Dynamics, Independence).
+  switch (category) {
+    case 'timing':
+    case 'dynamics':
+    case 'independence':
+      if (result.accuracyPercent > 90) {
+        depth = 'consolidating';
+      } else if (result.accuracyPercent > 70) {
+        depth = 'developing';
+      } else {
+        depth = 'introduction';
+      }
+      break;
   }
 
   // We enforce the cap explicitly just in case MAX_PLACEMENT_DEPTH changes in the future,
