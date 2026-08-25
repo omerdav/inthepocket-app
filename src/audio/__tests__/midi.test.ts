@@ -201,9 +201,8 @@ describe('MidiEngine', () => {
         engine.onHit(h => hits.push({ ...h }))
         
         triggerControlChange(4, 0, 1000)
-        triggerControlChange(4, 127, 1100)
-        
         triggerNoteOn(44, 1100)
+        triggerControlChange(4, 127, 1100)
         
         expect(hits).toHaveLength(1)
         expect(hits[0].note).toBe(44)
