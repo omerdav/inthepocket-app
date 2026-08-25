@@ -41,11 +41,8 @@ test.describe('Settings Menu UI E2E', () => {
     // Start with Blind Mode focused
     await expect(menu.locator('.settings-item.focused')).toContainText('Blind Mode');
 
-<<<<<<< HEAD
-    // Blind mode is initially OFF. Items: 0 (Blind Mode), 2 (Metronome Volume), 3 (Calibrate Dynamics).
-=======
-    // Blind mode is initially OFF. Items: 0 (Blind Mode), 2 (Metronome Volume), 3 (Map My Kit).
->>>>>>> master
+    // Blind mode OFF, so index 1 is skipped. Items: 0 Blind Mode,
+    // 2 Metronome Volume, 3 Map My Kit, 4 Calibrate Dynamics, 5 Engine Error Log.
     // Scroll down (Snare Rim)
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
     await page.waitForTimeout(100);
@@ -54,11 +51,12 @@ test.describe('Settings Menu UI E2E', () => {
     // Scroll down
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
     await page.waitForTimeout(100);
-<<<<<<< HEAD
-    await expect(menu.locator('.settings-item.focused')).toContainText('Calibrate Dynamics');
-=======
     await expect(menu.locator('.settings-item.focused')).toContainText('Map My Kit');
->>>>>>> master
+
+    // Scroll down. T-046 added dynamics calibration.
+    await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
+    await page.waitForTimeout(100);
+    await expect(menu.locator('.settings-item.focused')).toContainText('Calibrate Dynamics');
 
     // Scroll down. T-033 added the engine error log as the last item.
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
@@ -97,7 +95,9 @@ test.describe('Settings Menu UI E2E', () => {
     // Let's scroll back to Blind Mode to turn it OFF and test the skip
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Metronome
     await page.waitForTimeout(100);
-    await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Hardware Calib
+    await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Map My Kit (T-045)
+    await page.waitForTimeout(100);
+    await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Calibrate Dynamics (T-046)
     await page.waitForTimeout(100);
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Engine Error Log (T-033)
     await page.waitForTimeout(100);

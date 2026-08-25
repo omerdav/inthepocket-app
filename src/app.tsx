@@ -13,12 +13,9 @@ import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
 import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
 import { HiHatCalibration, isCalibrationOpen, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
-<<<<<<< HEAD
 import { DynamicsCalibrator } from './components/settings/DynamicsCalibrator'
-=======
 import { KitMapper } from './components/settings/KitMapper'
 import { UnrecognisedPadHint } from './components/settings/UnrecognisedPadHint'
->>>>>>> master
 import { progressionStore } from './store'
 import { EngineWarmup } from './components/layout/EngineWarmup'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
@@ -344,12 +341,9 @@ export function App() {
         </div>
       )}
 
-<<<<<<< HEAD
       <DynamicsCalibrator />
-=======
       <KitMapper />
       <UnrecognisedPadHint />
->>>>>>> master
       <HiHatCalibration />
       
       <ThroneView
