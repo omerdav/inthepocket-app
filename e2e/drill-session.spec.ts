@@ -21,7 +21,7 @@ const NOTE_COUNT = 16;      // 2 bars of eighths
 const NOTE_SPACING_MS = 375; // 80 BPM eighths
 const ACCENT_EVERY = 8;      // one accent per bar
 
-test.describe.configure({ mode: 'serial' });
+// Removed mode: 'serial' to prevent failure cascades (workers: 1 in config already prevents concurrency)
 
 /**
  * Play the drill with a per-note velocity/offset strategy and return what the
@@ -114,14 +114,13 @@ test('Groove Circle is visible during playing and reflects live hits', async ({ 
   const canvas = page.locator('.groove-circle-container canvas');
   await expect(canvas).toBeVisible();
 
-  const greenColor = await page.evaluate(async () => {
+  await page.evaluate(async () => {
     const start: number = await (window as any).__drillStart;
     const vd = (window as any).__virtualDrummer;
     vd.hit(38, 100, start);
-    await new Promise(r => setTimeout(r, 50));
-    return (document.querySelector('[data-testid="groove-circle-canvas"]') as HTMLElement)?.dataset.lastHitColor;
   });
-  expect(greenColor).toBe('hsl(142, 76%, 45%)');
+
+  await expect(canvas).toHaveAttribute('data-last-hit-color', 'hsl(142, 76%, 45%)', { timeout: 2000 });
 });
 
 test('a clean performance passes and reports being in the pocket', async ({ page }) => {
