@@ -206,9 +206,36 @@ export function DrillSession({ unit, worker }: Props) {
         setAudioLocked(true)
         window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'idle', unitId: unit.id } }))
       } else {
-        // Any other unexpected errors can just be ignored or logged, DrillRunner handles expected stalls.
+        // BACKSTOP, not duplication. DrillRunner now catches the failures it can
+        // name — kit-disconnected, tab-hidden, audio-stall, metronome — and
+        // returns a result with a specific message. But `run()` can still throw
+        // before any of that: audio refusing to unlock, the engine failing to
+        // initialise, or something nobody has thought of yet.
+        //
+        // Whatever happens, the drummer must be told something. Removing this
+        // and trusting DrillRunner to cover every case is what broke the two
+        // tests guarding T-017 — both mock `run()` to reject outright, which is
+        // exactly the shape of the failures this branch exists for.
+        let detail = 'The drill could not complete because the browser audio engine stalled or failed to start. Please try again.'
+        if (msg.includes('Metronome did not start')) {
+          detail = 'The metronome failed to start. Please try again.'
+        }
+        setResult({
+          unitId: unit.id,
+          passed: false,
+          accuracyPercent: 0,
+          diagnosis: { headline: 'Audio System Interrupted', detail, beats: [] },
+          numTargets: unit.sequence.length,
+          numHits: 0,
+          categories: new Int8Array(0),
+          offsets: new Float32Array(0),
+          dynamicScores: new Int8Array(0),
+          diagnosticRuleIds: new Uint8Array(0),
+          struckZones: new Int8Array(0),
+          error: 'audio-stall',
+        })
         errorReporter.logDrillError('audio-stall', msg)
-        window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'idle', unitId: unit.id } }))
+        window.dispatchEvent(new CustomEvent(DRILL_PHASE_EVENT, { detail: { phase: 'complete', unitId: unit.id } }))
       }
     }
   }

@@ -385,8 +385,10 @@ describe('DrillRunner Evaluator Dispatch', () => {
     const runner = new DrillRunner(workerMock);
     (DrillRunner.prototype as any)._sleepUntilAudioTime.mockRestore();
 
-    // Mock document.hidden
-    vi.stubGlobal('document', { hidden: true });
+    // visibilityState, not hidden: `hidden` is a derived getter and the
+    // implementation reads the canonical property so a test can simulate the
+    // state by setting one thing rather than two.
+    vi.stubGlobal('document', { visibilityState: 'hidden' });
 
     // Restore midiEngine just in case
     const midiMod = await import('../../audio/midi');

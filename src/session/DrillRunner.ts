@@ -109,10 +109,13 @@ export class DrillRunner {
 
     // Wait for the worklet to publish its first beat so the count-in is
     // anchored to the real audio grid rather than a guess.
-    const firstBeatSec = await this._awaitFirstBeat(view, ctx)
-    const drillStartSec = firstBeatSec + COUNT_IN_BEATS * periodSec
-
     try {
+      // Inside the try on purpose: this is where "Metronome did not start"
+      // comes from, and it deserves the same named handling as every other
+      // engine failure rather than escaping to DrillSession's backstop.
+      const firstBeatSec = await this._awaitFirstBeat(view, ctx)
+      const drillStartSec = firstBeatSec + COUNT_IN_BEATS * periodSec
+
       // --- count-in ---------------------------------------------------------
       this._emit({ phase: 'count-in', unitId: unit.id })
       for (let b = 0; b < COUNT_IN_BEATS; b++) {
@@ -220,7 +223,11 @@ export class DrillRunner {
         throw new Error('kit-disconnected');
       }
 
-      if (typeof document !== 'undefined' && document.hidden) {
+      // `visibilityState` rather than `hidden`: the spec defines hidden as
+      // visibilityState !== 'visible', so this is the canonical property, and
+      // it is the one a test can simulate without having to override two
+      // getters that a real browser changes together.
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         throw new Error('tab-hidden');
       }
 
@@ -232,7 +239,16 @@ export class DrillRunner {
   }
 
   private _abortResult(unit: ContentUnit, error: DrillResult['error'], headline: string, detail: string): DrillResult {
-    this._emit({ phase: 'idle', unitId: unit.id })
+    // 'cancelled' means the drummer chose to stop, so there is nothing to
+    // report and the phase returns to idle. Every other abort is something
+    // that happened TO them — a kit unplugged, an engine stalled — and they
+    // must be told, which means 'complete', because DrillSession renders the
+    // result screen only in that phase.
+    //
+    // Emitting 'idle' for an error set the result in state and then never
+    // showed it: the drummer's kit died mid-drill and the screen simply went
+    // back to Start with no explanation.
+    this._emit({ phase: error === 'cancelled' ? 'idle' : 'complete', unitId: unit.id })
     return {
       unitId: unit.id,
       passed: false,
