@@ -169,8 +169,9 @@ export class MidiEngine {
   // -- Track seen notes for hardware capability check --
   private _seenNotes: Set<number> = new Set<number>()
 
-  // -- UI debounce --
+  // -- UI debounce & Chick deduplication --
   private _lastRimUiTime = -Infinity
+  private _lastChickTime = -Infinity
 
   // -- Dead-zone control --
   private _drillActive = false
@@ -241,6 +242,9 @@ export class MidiEngine {
     this._hiHatTracker = new HiHatStateTracker({
       onEvent: (eventType, velocity, timestamp) => {
         if (eventType === 'hihat-chick') {
+          // Deduplicate if hardware already sent a physical note 44
+          if (timestamp - this._lastChickTime < 100) return;
+          this._lastChickTime = timestamp;
           this._dispatchHit(MIDI_NOTE.HI_HAT_CHICK, velocity, timestamp);
         }
       }
@@ -401,6 +405,15 @@ export class MidiEngine {
     // Prefer the raw MIDI timestamp if the browser supplies one;
     // fall back to performance.now().
     const timestamp: number = e.timestamp ?? performance.now()
+
+    if (note === MIDI_NOTE.HI_HAT_CHICK) {
+      if (timestamp - this._lastChickTime < 100) return;
+      this._lastChickTime = timestamp;
+      
+      // Dispatch and return
+      this._dispatchHit(MIDI_NOTE.HI_HAT_CHICK, Math.round(velocity * 127), timestamp, false);
+      return;
+    }
 
     // ---- Crosstalk filter (snare head vs. rim) ----
     // NOTE: This filter is **causal** — it can only suppress a rim click

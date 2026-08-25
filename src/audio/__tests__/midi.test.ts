@@ -30,9 +30,18 @@ describe('MidiEngine', () => {
     const event = {
       note: { number: note, attack: velocity },
       timestamp
-    }
-    // Access private method
+    } as any
     ;(engine as any)._handleNoteOn(event)
+  }
+
+  // Helper to trigger handleControlChange
+  const triggerControlChange = (controller: number, value: number, timestamp: number) => {
+    const event = {
+      controller: { number: controller },
+      value: value / 127.0, // WebMidi uses 0-1 float
+      timestamp
+    } as any
+    ;(engine as any)._handleControlChange(event)
   }
 
   describe('Crosstalk filter', () => {
@@ -184,6 +193,20 @@ describe('MidiEngine', () => {
       
       triggerNoteOn(MIDI_NOTE.KICK, 200)
       expect(hits).toHaveLength(1) // No new hit recorded
+    })
+
+    describe('HiHat chicks (R1)', () => {
+      it('should deduplicate if CC4 and note 44 are both received for the same chick', () => {
+        const hits: HitEvent[] = []
+        engine.onHit(h => hits.push({ ...h }))
+        
+        triggerControlChange(4, 0, 1000)
+        triggerNoteOn(44, 1100)
+        triggerControlChange(4, 127, 1100)
+        
+        expect(hits).toHaveLength(1)
+        expect(hits[0].note).toBe(44)
+      })
     })
   })
 })
