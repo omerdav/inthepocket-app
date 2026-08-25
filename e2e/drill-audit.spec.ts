@@ -106,6 +106,7 @@ test.describe('T-005 Drill Audit', () => {
 
             if (note.drumType === 'hihat-chick') {
               vd.cc(4, 0, targetPerfMs - 100);
+              vd.hit(44, vel, targetPerfMs);
               vd.cc(4, 127, targetPerfMs);
             } else if (note.drumType === 'hihat-open') {
               vd.cc(4, 0, targetPerfMs - 100);
