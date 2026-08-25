@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 import { DIAGNOSTIC_SEGMENTS } from './diagnosticSegments';
 import { calculatePlacement } from './placementLogic';
 import type { Depth, SkillCategory } from '../../store/ProgressionStore';
