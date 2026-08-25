@@ -59,6 +59,15 @@ export default defineConfig({
       testMatch: '**/simulation-matrix.spec.ts',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'offline',
+      testDir: './e2e',
+      testMatch: '**/offline.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:4173',
+      },
+    },
   ],
   webServer: {
     command: 'npm run dev',
