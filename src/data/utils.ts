@@ -1,4 +1,4 @@
-import { MIDI_NOTE } from '../audio/midi';
+import { MIDI_NOTE } from '../audio/midiNotes';
 import type { DrumType, DrillNote } from './types';
 
 // Bi-directional mapping between DrumType and MIDI_NOTE
@@ -15,6 +15,62 @@ export const MIDI_TO_DRUM_TYPE: Record<number, DrumType> = Object.entries(DRUM_T
   acc[note as number] = type as DrumType;
   return acc;
 }, {} as Record<number, DrumType>);
+
+/**
+ * Per-kit note mapping (Release_Plan 7.3, register P-3).
+ *
+ * `DRUM_TYPE_TO_MIDI` above is one hardcoded constant written against an
+ * Alesis. On a Roland the closed hi-hat is note 22, on a Yamaha the cross-stick
+ * is 37 — and before this, those pads did nothing at all: no error, no message,
+ * nothing on screen. A drummer could not tell an unmapped pad from a dead
+ * cable.
+ *
+ * `ProfilesStore.noteMap` is the seam. These two functions are the whole of the
+ * mapping logic, kept pure so they can be tested without a browser or a kit.
+ */
+
+/**
+ * Which drum a raw incoming note represents, for this kit.
+ *
+ * The profile's map wins; anything it does not name falls back to the default
+ * (Alesis) layout, so a drummer who has mapped only their hi-hat keeps working
+ * pads everywhere else.
+ */
+export function mapNoteToDrumType(
+  note: number,
+  noteMap?: Partial<Record<DrumType, number | null>> | null
+): DrumType | null {
+  if (noteMap) {
+    for (const [drumType, mappedNote] of Object.entries(noteMap)) {
+      if (mappedNote === note) return drumType as DrumType
+    }
+  }
+  return MIDI_TO_DRUM_TYPE[note] ?? null
+}
+
+/**
+ * Translate a raw incoming note into the canonical note the rest of the app
+ * uses, or `null` if this kit has never been told what the pad is.
+ *
+ * THIS IS THE WHOLE DESIGN. Canonicalising at the MIDI boundary means nothing
+ * downstream needs to know a note map exists: the crosstalk filter, the chick
+ * de-duplication, the zone comparison in the scoring worker and every drill's
+ * `targetZones` all keep comparing the same numbers they always did. The
+ * alternative — threading the map down into `DrillRunner._score` — changes the
+ * scoring path, which is guarded by a six-minute audit and is the last place
+ * that should acquire a new parameter.
+ *
+ * A mapped note that resolves to a drum the default layout also uses is
+ * idempotent: Alesis 42 maps to `hihat-closed` maps back to 42.
+ */
+export function canonicaliseNote(
+  note: number,
+  noteMap?: Partial<Record<DrumType, number | null>> | null
+): number | null {
+  const drumType = mapNoteToDrumType(note, noteMap)
+  if (drumType === null) return null
+  return DRUM_TYPE_TO_MIDI[drumType]
+}
 
 // Velocity Ranges (Calibrated for ~15-25dB drop on ghost notes)
 export const VELOCITY_RANGES = {

@@ -7,7 +7,11 @@ import {
   metronomeVolume
 } from '../../state/settings';
 import { errorReporter, type ErrorRecord } from '../../ErrorReporter';
+<<<<<<< HEAD
 import { isDynamicsCalibratorOpen } from './DynamicsCalibrator';
+=======
+import { isKitMapperOpen } from './KitMapper';
+>>>>>>> master
 import './SettingsMenu.css';
 
 const BLIND_THRESHOLDS = [4, 8, 16];
@@ -50,7 +54,11 @@ export function SettingsMenu() {
         const idx = METRONOME_VOLUMES.indexOf(metronomeVolume.value);
         metronomeVolume.value = METRONOME_VOLUMES[(idx + 1) % METRONOME_VOLUMES.length];
       } else if (current === 3) {
+<<<<<<< HEAD
         isDynamicsCalibratorOpen.value = true;
+=======
+        isKitMapperOpen.value = true;
+>>>>>>> master
       } else if (current === 4) {
         void toggleErrorLog();
       }
@@ -130,7 +138,11 @@ export function SettingsMenu() {
         </div>
 
         <div class={`settings-item ${focusedIndex.value === 3 ? 'focused' : ''}`}>
+<<<<<<< HEAD
           <span>Calibrate Dynamics</span>
+=======
+          <span>Map My Kit</span>
+>>>>>>> master
           <span>[ START ]</span>
         </div>
 

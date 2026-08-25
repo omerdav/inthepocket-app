@@ -59,6 +59,18 @@ class ErrorReporter {
     })
   }
 
+  /**
+   * A pad arrived that this kit has never been mapped (7.3 R4).
+   *
+   * Recorded so a drummer reporting "my hi-hat does nothing" has the note
+   * number in the log, rather than needing to have caught the on-screen hint.
+   * Collapsing means a drummer leaning on an unmapped pad produces one entry
+   * with a count, not fifty.
+   */
+  logUnrecognisedPad(note: number) {
+    this.logError(`Unrecognised pad: MIDI note ${note} is not mapped for this kit`)
+  }
+
   logDrillError(error: DrillResult['error'], message?: string) {
     this.logError(message || `DrillResult.error: ${error}`)
   }

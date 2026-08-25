@@ -15,6 +15,12 @@
  * @module audio/midi
  */
 
+import { MIDI_NOTE } from './midiNotes'
+// Re-exported so the many existing importers of `MIDI_NOTE` from this module
+// keep working; the definition lives in the leaf to break the import cycle.
+export { MIDI_NOTE }
+import { canonicaliseNote } from '../data/utils'
+import type { DrumType } from '../data/types'
 import { WebMidi, type Input, type NoteMessageEvent, type ControlChangeMessageEvent } from 'webmidi'
 import type { TimestampCorrelator } from './TimestampCorrelator'
 import { HiHatStateTracker } from './HiHatStateTracker'
@@ -25,16 +31,6 @@ import { nearestBeatDeltaMs } from './metronomeSab'
 // ---------------------------------------------------------------------------
 
 /** MIDI note numbers for the standard e-drum kit mapping. */
-export const MIDI_NOTE = {
-  SNARE_HEAD: 38,
-  SNARE_RIM: 40,
-  KICK: 36,
-  HI_HAT_CLOSED: 42,
-  HI_HAT_CHICK: 44,
-  HI_HAT_OPEN: 46,
-  CRASH: 49,
-  RIDE: 51,
-} as const
 
 export type MidiNoteNumber = (typeof MIDI_NOTE)[keyof typeof MIDI_NOTE]
 
@@ -206,6 +202,71 @@ export class MidiEngine {
   /** True if at least one MIDI input is currently connected. */
   get isKitConnected(): boolean {
     return this._initialized && WebMidi.inputs.length > 0
+  }
+
+  /**
+   * This kit's note map, or null for the default layout.
+   *
+   * Held here rather than read from the store per hit: `_handleNoteOn` is on
+   * the hot path and must not do async work or allocate.
+   */
+  private _noteMap: Partial<Record<DrumType, number | null>> | null = null
+
+  /** Listeners for pads this kit has never been told about. */
+  private _unrecognisedListeners = new Set<(note: number) => void>()
+
+  /** Listeners for every incoming note, before translation. */
+  private _rawNoteListeners = new Set<(note: number, velocity: number) => void>()
+
+  /**
+   * Subscribe to raw, untranslated notes.
+   *
+   * For the kit mapper only. Everything else wants `onHit`, which speaks the
+   * canonical vocabulary and has already had crosstalk and pedal
+   * de-duplication applied.
+   */
+  onRawNote(cb: (note: number, velocity: number) => void): () => void {
+    this._rawNoteListeners.add(cb)
+    return () => this._rawNoteListeners.delete(cb)
+  }
+
+  private _notifyRawNote(note: number, velocity: number): void {
+    for (const cb of this._rawNoteListeners) {
+      try {
+        cb(note, velocity)
+      } catch {
+        // A listener must never take the MIDI path down with it.
+      }
+    }
+  }
+
+  /** Apply a kit profile's note map. Pass null to fall back to the default. */
+  setNoteMap(map: Partial<Record<DrumType, number | null>> | null): void {
+    this._noteMap = map
+  }
+
+  get noteMap(): Partial<Record<DrumType, number | null>> | null {
+    return this._noteMap
+  }
+
+  /**
+   * Called with the raw note whenever a pad arrives that neither this kit's map
+   * nor the default layout recognises. This is what lets the UI say "I do not
+   * know this pad" instead of staying silent.
+   */
+  onUnrecognisedNote(cb: (note: number) => void): () => void {
+    this._unrecognisedListeners.add(cb)
+    return () => this._unrecognisedListeners.delete(cb)
+  }
+
+  private _notifyUnrecognisedNote(note: number): void {
+    for (const cb of this._unrecognisedListeners) {
+      try {
+        cb(note)
+      } catch {
+        // A listener must never take the MIDI path down with it.
+      }
+    }
   }
 
   /** Current hi-hat pedal value (0-127). */
@@ -438,7 +499,35 @@ export class MidiEngine {
    * - Only typed-array / pre-allocated object access.
    */
   private _handleNoteOn(e: NoteMessageEvent): void {
-    const note = e.note.number
+    const rawNote = e.note.number
+
+    // Translate the drummer's kit into the notes the rest of the app speaks,
+    // right here at the boundary (Release_Plan 7.3, register P-3).
+    //
+    // Everything below this line — the chick de-duplication, the crosstalk
+    // filter, the zone comparison in the scoring worker — was written against
+    // one hardcoded Alesis layout. Canonicalising first means all of it works
+    // on any kit without acquiring a note map parameter, and in particular the
+    // scoring path is untouched.
+    // Raw notes, before translation. The kit mapper needs these: it is the one
+    // part of the app whose job is to learn what a pad sends, so it cannot use
+    // the canonical stream — an unmapped pad never reaches it, and a pad the
+    // drummer wants to *re*-map would arrive already translated into whatever
+    // it currently means.
+    if (this._rawNoteListeners.size > 0) {
+      this._notifyRawNote(rawNote, Math.round(e.note.attack * 127))
+    }
+
+    const note = canonicaliseNote(rawNote, this._noteMap)
+
+    if (note === null) {
+      // An unmapped pad used to do nothing at all: no error, no message,
+      // nothing on screen. A drummer could not tell it apart from a dead
+      // cable, which is most of the support burden this feature prevents.
+      this._notifyUnrecognisedNote(rawNote)
+      return
+    }
+
     const velocity = e.note.attack // 0-1 float from webmidi v3
     // Prefer the raw MIDI timestamp if the browser supplies one;
     // fall back to performance.now().
