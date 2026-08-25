@@ -13,6 +13,7 @@ import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
 import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
 import { HiHatCalibration, isCalibrationOpen, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
+import { DynamicsCalibrator } from './components/settings/DynamicsCalibrator'
 import { progressionStore } from './store'
 import { EngineWarmup } from './components/layout/EngineWarmup'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
@@ -338,6 +339,7 @@ export function App() {
         </div>
       )}
 
+      <DynamicsCalibrator />
       <HiHatCalibration />
       
       <ThroneView

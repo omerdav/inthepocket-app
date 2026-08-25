@@ -41,7 +41,7 @@ test.describe('Settings Menu UI E2E', () => {
     // Start with Blind Mode focused
     await expect(menu.locator('.settings-item.focused')).toContainText('Blind Mode');
 
-    // Blind mode is initially OFF. Items: 0 (Blind Mode), 2 (Metronome Volume), 3 (Hardware Calibration).
+    // Blind mode is initially OFF. Items: 0 (Blind Mode), 2 (Metronome Volume), 3 (Calibrate Dynamics).
     // Scroll down (Snare Rim)
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
     await page.waitForTimeout(100);
@@ -50,7 +50,7 @@ test.describe('Settings Menu UI E2E', () => {
     // Scroll down
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
     await page.waitForTimeout(100);
-    await expect(menu.locator('.settings-item.focused')).toContainText('Hardware Calibration');
+    await expect(menu.locator('.settings-item.focused')).toContainText('Calibrate Dynamics');
 
     // Scroll down. T-033 added the engine error log as the last item.
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);

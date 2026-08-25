@@ -1,0 +1,60 @@
+/*
+ * Dynamics calibration (7.2). Read from a stool at 1.5-2.5m while holding
+ * sticks, so the instruction is the largest thing on screen and the count is
+ * tabular — a number that jitters in width is hard to read at a glance while
+ * you are also trying to play evenly.
+ */
+.dyn-cal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: rgba(10, 12, 20, 0.92);
+  color: var(--text-primary, #f0f4f8);
+  text-align: center;
+  padding: 24px;
+}
+
+.dyn-cal h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8b9bb4);
+}
+
+.dyn-cal-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 34rem;
+}
+
+.dyn-cal-title {
+  margin: 0;
+  font-size: clamp(2rem, 7vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--accent-cyan, #00fff5);
+}
+
+.dyn-cal-ok { color: #3ddc97; }
+.dyn-cal-warn { color: var(--accent-magenta, #ff007f); font-size: clamp(1.5rem, 5vw, 2.2rem); }
+
+.dyn-cal-hint { margin: 0; font-size: 1.15rem; color: var(--text-primary, #f0f4f8); }
+
+.dyn-cal-count {
+  margin: 0;
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 700;
+}
+
+.dyn-cal-foot { margin: 0; color: var(--text-muted, #8b9bb4); }
+
+.dyn-cal-close { position: absolute; bottom: 40px; }

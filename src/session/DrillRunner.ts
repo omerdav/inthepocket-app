@@ -1,5 +1,6 @@
 import type { ContentUnit } from '../data/types'
-import { DRUM_TYPE_TO_MIDI, VELOCITY_RANGES } from '../data/utils'
+import { DRUM_TYPE_TO_MIDI } from '../data/utils'
+import { resolveVelocityRange } from '../data/dynamics'
 import { audioEngine } from '../audio/AudioEngine'
 import { midiEngine, type HitEvent } from '../audio/midi'
 import { evaluateDrillPass } from '../data/bootcamps/dynamics-gate'
@@ -280,13 +281,10 @@ export class DrillRunner {
     for (let i = 0; i < n; i++) {
       const note = unit.sequence[i]
       targetBeats[i] = drillStartSec * 1000 + note.targetTimeMs
-      const range =
-        note.velocityRange ??
-        (note.drumType === 'hihat-chick'
-          ? { min: 0, max: 127 }
-          : note.isAccent
-          ? VELOCITY_RANGES.ACCENT
-          : VELOCITY_RANGES.NORMAL)
+      // Judged against this drummer's own kit, not one module's factory curve
+      // (7.2). With no calibration set this returns exactly the constants the
+      // ternary above used to, so the audit is unaffected.
+      const range = resolveVelocityRange(note)
       targetVelocityMin[i] = range.min
       targetVelocityMax[i] = range.max
       targetZones[i] = DRUM_TYPE_TO_MIDI[note.drumType]
