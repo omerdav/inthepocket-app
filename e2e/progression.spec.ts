@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { enterApp } from './helpers';
 import { STORE_PROGRESSION } from '../src/store/db';
 
 const SEED_STATE = {
@@ -27,25 +28,35 @@ const SEED_STATE = {
 
 test.describe('Progression surfacing', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/*.js', route => route.abort());
+    page.on('console', msg => console.log('BROWSER:', msg.type() + ': ' + msg.text()));
+    
+    // Navigate to app so DB is initialized
     await page.goto('/');
+    
+    // Seed IndexedDB
     await page.evaluate(async (state) => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('inthepocket', 2);
-        req.onupgradeneeded = () => {
-          req.result.createObjectStore(state.storeName);
-        };
         req.onsuccess = () => {
           const db = req.result;
           const tx = db.transaction(state.storeName, 'readwrite');
           tx.objectStore(state.storeName).put(state.data, 'state');
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+          };
         };
+        req.onerror = () => reject(req.error);
       });
     }, { storeName: 'progression', data: SEED_STATE });
-    await page.unroute('**/*.js');
-    await page.goto('/');
+
+    // Reload so the app reads the new state
+    await page.reload();
+    await enterApp(page);
   });
 
   test('surfaces depths, streak, and next recommendation', async ({ page }) => {
@@ -53,7 +64,6 @@ test.describe('Progression surfacing', () => {
     // Wait for the panel
     await expect(page.getByTestId('quick-menu-panel')).toBeVisible();
 
-    // Verify streak
     await expect(page.getByTestId('streak')).toContainText('Streak: 4');
     await expect(page.getByTestId('streak')).toContainText('Best: 12');
 
