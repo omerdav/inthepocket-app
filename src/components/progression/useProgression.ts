@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
 import { progressionStore } from '../../store';
 import type { ProgressionState } from '../../store/ProgressionStore';
-import { emptyProgression } from '../../store/ProgressionStore';
 import { isQuickMenuOpen } from '../../state/session';
 
 export function useProgression() {
