@@ -409,6 +409,10 @@ export class MidiEngine {
     if (note === MIDI_NOTE.HI_HAT_CHICK) {
       if (timestamp - this._lastChickTime < 100) return;
       this._lastChickTime = timestamp;
+      
+      // Dispatch and return
+      this._dispatchHit(MIDI_NOTE.HI_HAT_CHICK, Math.round(velocity * 127), timestamp, false);
+      return;
     }
 
     // ---- Crosstalk filter (snare head vs. rim) ----
