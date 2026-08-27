@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { MAX_PLACEMENT_DEPTH } from '../../../store/ProgressionStore'
 import { calculatePlacement } from '../placementLogic';
 import type { DrillResult } from '../../../session/DrillRunner';
 
@@ -30,6 +31,48 @@ describe('placementLogic', () => {
     expect(beginnerDepth).toBe('introduction');
     expect(advancedDepth).toBe('consolidating');
   });
+
+  it('never places deeper than MAX_PLACEMENT_DEPTH, at any accuracy', () => {
+    // The existing cap test is vacuous: the bands top out at 'consolidating',
+    // which IS the cap, so the guard can never fire and deleting it breaks
+    // nothing. This sweeps the whole input range instead, so widening a band
+    // to 'mastery' — the change the cap exists to survive — fails here.
+    const order = ['introduction', 'developing', 'consolidating', 'mastery']
+    const maxIndex = order.indexOf(MAX_PLACEMENT_DEPTH)
+
+    for (let percent = 0; percent <= 100; percent += 5) {
+      const result = { passed: true, accuracyPercent: percent, dynamicScores: new Int8Array([1, 1, 1, 1]), decouplingScore: undefined } as unknown as DrillResult
+      for (const category of ['timing', 'dynamics', 'independence'] as const) {
+        const depth = calculatePlacement(category, result)
+        expect(order.indexOf(depth as string), `${category} at ${percent}% placed too deep`).toBeLessThanOrEqual(maxIndex)
+      }
+    }
+  })
+
+  it('measures dynamics by dynamics, not by timing', () => {
+    // A drummer with excellent time and flat dynamics. accuracyPercent counts
+    // GREEN categories only, which is timing — grading dynamics on it placed
+    // this drummer at consolidating for a category they had not demonstrated.
+    const flatDynamics = {
+      passed: true,
+      accuracyPercent: 100,
+      dynamicScores: new Int8Array([0, 0, 0, 1]),
+      decouplingScore: undefined,
+    } as unknown as DrillResult
+
+    expect(calculatePlacement('dynamics', flatDynamics)).toBe('introduction')
+    // The same result read as timing is still a strong timing performance.
+    expect(calculatePlacement('timing', flatDynamics)).toBe('consolidating')
+  })
+
+  it('places a drummer with clean dynamics above one without', () => {
+    const base = { passed: true, accuracyPercent: 75, decouplingScore: undefined }
+    const clean = { ...base, dynamicScores: new Int8Array([1, 1, 1, 1]) } as unknown as DrillResult
+    const messy = { ...base, dynamicScores: new Int8Array([1, 0, 0, 0]) } as unknown as DrillResult
+
+    expect(calculatePlacement('dynamics', clean)).toBe('consolidating')
+    expect(calculatePlacement('dynamics', messy)).toBe('introduction')
+  })
 
   it('caps placement at consolidating', () => {
     const perfectResult: DrillResult = {
