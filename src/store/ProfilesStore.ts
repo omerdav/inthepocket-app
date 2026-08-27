@@ -1,4 +1,5 @@
 import { STORE_PROFILES, type KeyValueStore } from './db'
+import type { DynamicsCalibration } from '../data/dynamicsCalibration'
 import type { DrumType } from '../data/types'
 
 /**
@@ -24,6 +25,11 @@ export interface HiHatCalibrationRecord {
 
 export interface KitProfileRecord {
   hiHat: HiHatCalibrationRecord | null
+  /**
+   * This drummer's velocity thresholds on this kit (7.2). Null means the
+   * built-in defaults, which are one module's factory curve.
+   */
+  dynamics: DynamicsCalibration | null
   /** Per-zone MIDI note overrides. Null means "use the built-in defaults". A specific zone set to null means it's absent. */
   noteMap: Partial<Record<DrumType, number | null>> | null
   updatedAt: number
@@ -32,7 +38,7 @@ export interface KitProfileRecord {
 const PROFILE_KEY = 'active-kit'
 
 export function emptyProfile(): KitProfileRecord {
-  return { hiHat: null, noteMap: null, updatedAt: 0 }
+  return { hiHat: null, dynamics: null, noteMap: null, updatedAt: 0 }
 }
 
 export class ProfilesStore {
@@ -54,6 +60,15 @@ export class ProfilesStore {
   async saveHiHatCalibration(min: number, max: number, now = Date.now()): Promise<void> {
     const profile = await this.load()
     await this.save({ ...profile, hiHat: { min, max, calibratedAt: now } })
+  }
+
+  async saveDynamicsCalibration(calibration: DynamicsCalibration): Promise<void> {
+    const profile = await this.load()
+    await this.save({ ...profile, dynamics: calibration })
+  }
+
+  async dynamicsCalibration(): Promise<DynamicsCalibration | null> {
+    return (await this.load()).dynamics
   }
 
   async hiHatCalibration(): Promise<HiHatCalibrationRecord | null> {

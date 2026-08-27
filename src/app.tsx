@@ -13,6 +13,7 @@ import { getDrill, DEFAULT_DRILL_ID } from './data/registry'
 import { currentDrillId } from './state/routing'
 import { QuickMenu } from './components/layout/QuickMenu'
 import { HiHatCalibration, isCalibrationOpen, restoreHiHatCalibration } from './components/layout/HiHatCalibration'
+import { DynamicsCalibrator } from './components/settings/DynamicsCalibrator'
 import { KitMapper } from './components/settings/KitMapper'
 import { UnrecognisedPadHint } from './components/settings/UnrecognisedPadHint'
 import { progressionStore } from './store'
@@ -340,6 +341,7 @@ export function App() {
         </div>
       )}
 
+      <DynamicsCalibrator />
       <KitMapper />
       <UnrecognisedPadHint />
       <HiHatCalibration />

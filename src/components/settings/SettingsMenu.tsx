@@ -7,6 +7,7 @@ import {
   metronomeVolume
 } from '../../state/settings';
 import { errorReporter, type ErrorRecord } from '../../ErrorReporter';
+import { isDynamicsCalibratorOpen } from './DynamicsCalibrator';
 import { isKitMapperOpen } from './KitMapper';
 import './SettingsMenu.css';
 
@@ -30,7 +31,7 @@ export function SettingsMenu() {
         nextIndex = 2;
       }
       
-      if (nextIndex > 4) {
+      if (nextIndex > 5) {
         nextIndex = 0;
       }
       
@@ -52,6 +53,8 @@ export function SettingsMenu() {
       } else if (current === 3) {
         isKitMapperOpen.value = true;
       } else if (current === 4) {
+        isDynamicsCalibratorOpen.value = true;
+      } else if (current === 5) {
         void toggleErrorLog();
       }
     };
@@ -135,6 +138,11 @@ export function SettingsMenu() {
         </div>
 
         <div class={`settings-item ${focusedIndex.value === 4 ? 'focused' : ''}`}>
+          <span>Calibrate Dynamics</span>
+          <span>[ START ]</span>
+        </div>
+
+        <div class={`settings-item ${focusedIndex.value === 5 ? 'focused' : ''}`}>
           <span>Engine Error Log</span>
           <span>[ {logExportStatus} ]</span>
         </div>
