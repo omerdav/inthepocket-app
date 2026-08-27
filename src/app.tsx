@@ -20,6 +20,7 @@ import { progressionStore } from './store'
 import { EngineWarmup } from './components/layout/EngineWarmup'
 import { hasCompletedDiagnostic, isQuickMenuOpen, isDrillPlaying } from './state/session'
 import { useSignalEffect } from '@preact/signals'
+import { DiagnosticOverlay } from './components/placement/DiagnosticOverlay'
 
 // E2E Hooks
 if (typeof window !== 'undefined') {
@@ -72,7 +73,8 @@ export function App() {
     void (async () => {
       let placed = false
       try {
-        placed = (await progressionStore.load()).placementCompletedAt != null
+        const state = await progressionStore.load()
+        placed = state.placementCompletedAt != null || state.placementSkippedAt != null
         await restoreHiHatCalibration()
       } catch (err) {
         // Storage unavailable (private browsing, blocked). Fall through to the
@@ -324,21 +326,8 @@ export function App() {
 
   return (
     <>
-      {hydrated && !hasCompletedDiagnostic.value && (
-        <div class="diagnostic-overlay" data-testid="diagnostic-overlay" style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
-          background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', 
-          flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <h2>Welcome to In The Pocket</h2>
-          <p>Let's calibrate your drum kit placement.</p>
-          <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
-            <button class="tab-btn active" onClick={completeDiagnostic}>
-              Start Placement Diagnostic
-            </button>
-            <button class="tab-btn" onClick={completeDiagnostic}>Skip</button>
-          </div>
-        </div>
+      {hydrated && !hasCompletedDiagnostic.value && scoringWorker && (
+        <DiagnosticOverlay worker={scoringWorker} onComplete={completeDiagnostic} />
       )}
 
       <DynamicsCalibrator />

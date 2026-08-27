@@ -46,9 +46,11 @@ function toGridSequence(unit: ContentUnit): DrillSequence {
 interface Props {
   unit: ContentUnit
   worker: Worker
+  /** Optional override. If provided, DrillSession will call this instead of recordCompletion. */
+  onComplete?: (result: DrillResult) => void
 }
 
-export function DrillSession({ unit, worker }: Props) {
+export function DrillSession({ unit, worker, onComplete }: Props) {
   const [phase, setPhase] = useState<DrillPhase>('idle')
   const [countInBeat, setCountInBeat] = useState(0)
   const [result, setResult] = useState<DrillResult | null>(null)
@@ -197,7 +199,11 @@ export function DrillSession({ unit, worker }: Props) {
         errorReporter.logDrillError(r.error)
       }
       // Persist before refreshing the badge, so the badge reflects stored state.
-      await recordCompletion(r, startedAt)
+      if (onComplete) {
+        onComplete(r)
+      } else {
+        await recordCompletion(r, startedAt)
+      }
       setMastered(await progressionStore.load().then((s) => isMastered(s, unit.id)))
     } catch (err) {
       console.warn('[DrillSession]', err)

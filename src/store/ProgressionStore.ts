@@ -47,6 +47,7 @@ export interface ProgressionState {
   drills: Record<string, DrillProgress>
   depths: Record<SkillCategory, Depth>
   placementCompletedAt: number | null
+  placementSkippedAt: number | null
   streak: PracticeStreak
 }
 
@@ -57,6 +58,7 @@ export function emptyProgression(): ProgressionState {
     drills: {},
     depths: { timing: 'introduction', dynamics: 'introduction', independence: 'introduction' },
     placementCompletedAt: null,
+    placementSkippedAt: null,
     streak: { current: 0, longest: 0, lastPracticeDay: null },
   }
 }
@@ -143,6 +145,10 @@ export function applyPlacement(
   return { ...state, depths: next, placementCompletedAt: now }
 }
 
+export function applyPlacementSkip(state: ProgressionState, now: number): ProgressionState {
+  return { ...state, placementSkippedAt: now }
+}
+
 export function isMastered(state: ProgressionState, drillId: string): boolean {
   return state.drills[drillId]?.masteredAt != null
 }
@@ -183,6 +189,12 @@ export class ProgressionStore {
     now = Date.now()
   ): Promise<ProgressionState> {
     const next = applyPlacement(await this.load(), depths, now)
+    await this.save(next)
+    return next
+  }
+
+  async recordPlacementSkip(now = Date.now()): Promise<ProgressionState> {
+    const next = applyPlacementSkip(await this.load(), now)
     await this.save(next)
     return next
   }
