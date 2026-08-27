@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/virtual-drummer';
 import { dismissFirstRun } from './fixtures/virtual-drummer';
 import { enterApp } from './helpers';
 
@@ -7,7 +7,8 @@ test.describe('QuickMenu UI & Navigation', () => {
   // The QuickMenu is a product component, so it is tested on the product
   // route. Only the visibility test needs the dev harness, for its manual
   // drill-playback toggle.
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, injectVirtualDrummer }) => {
+    await injectVirtualDrummer();
     await page.goto('/');
     await enterApp(page);
   });
@@ -62,10 +63,18 @@ test.describe('QuickMenu UI & Navigation', () => {
     await expect(page.getByTestId('phase-empty-state')).toBeVisible();
   });
 
-  test('Stick select launches the focused drill — no mouse required', async ({ page }) => {
-    // Focus starts on the Practice tab (slot 1). Tabs occupy slots 0-2, so
-    // two scrolls reach slot 3: the first drill.
-    await scroll(page, 2);
+  test('Stick select launches the focused drill — no mouse required', async ({ page, injectVirtualDrummer }) => {
+    await injectVirtualDrummer();
+    
+    // Focus starts on the Practice tab. We need to reach the first drill.
+    // However, the progression system may dynamically inject a "Next Up" drill.
+    // By scrolling until the 'focused' class reaches the Dynamics Gate drill,
+    // the test becomes robust against asynchronous menu changes.
+    await expect.poll(async () => {
+      await scroll(page, 1);
+      return page.locator('[data-testid="menu-item-dynamics-gate-drill-1"]').evaluate(el => el.classList.contains('focused'));
+    }, { timeout: 10000, message: 'Wait for stick focus to reach Dynamics Gate drill' }).toBeTruthy();
+
     await select(page);
 
     // The drill must actually start: count-in is proof the runner engaged.

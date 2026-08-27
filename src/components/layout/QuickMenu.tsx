@@ -32,7 +32,7 @@ type NavItem =
   | { kind: 'next-drill'; entry: DrillEntry };
 
 export function QuickMenu() {
-  const focusIndex = useSignal(PHASES.indexOf('practice'));
+  const focusedId = useSignal<string>(`tab:practice`);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const phase = sessionPhase.value;
@@ -49,12 +49,15 @@ export function QuickMenu() {
     ...sections.flatMap((s) => s.entries.map((entry) => ({ kind: 'drill' as const, entry }))),
   ];
 
-  const indexOfDrill = (id: string) =>
-    navItems.findIndex((n) => n.kind === 'drill' && n.entry.unit.id === id);
+  const getItemId = (item: NavItem) => {
+    if (item.kind === 'tab') return `tab:${item.phase}`;
+    if (item.kind === 'next-drill') return 'next-drill';
+    return `drill:${item.entry.unit.id}`;
+  };
 
   useEffect(() => {
     // Focus the active tab when the phase changes, so the ring stays coherent.
-    focusIndex.value = PHASES.indexOf(phase);
+    focusedId.value = `tab:${phase}`;
   }, [phase]);
 
   useEffect(() => {
@@ -63,12 +66,14 @@ export function QuickMenu() {
 
     const handleScroll = (e: Event) => {
       e.preventDefault();
-      focusIndex.value = (focusIndex.value + 1) % navItems.length;
+      const currentIndex = navItems.findIndex(i => getItemId(i) === focusedId.value);
+      const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % navItems.length;
+      focusedId.value = getItemId(navItems[nextIndex]);
     };
 
     const handleSelect = (e: Event) => {
       e.preventDefault();
-      const item = navItems[focusIndex.value];
+      const item = navItems.find(i => getItemId(i) === focusedId.value);
       if (!item) return;
       if (item.kind === 'tab') {
         sessionPhase.value = item.phase;
@@ -84,7 +89,7 @@ export function QuickMenu() {
       window.removeEventListener('stick-scroll-down', handleScroll);
       window.removeEventListener('stick-select', handleSelect);
     };
-  }, [isQuickMenuOpen.value, navItems.length, phase]);
+  }, [isQuickMenuOpen.value, navItems, phase]);
 
   if (!isQuickMenuOpen.value) {
     return null;
@@ -96,7 +101,7 @@ export function QuickMenu() {
         {PHASES.map((p, i) => (
           <button
             key={p}
-            className={`tab-btn ${phase === p ? 'active' : ''} ${focusIndex.value === i ? 'focused' : ''}`}
+            className={`tab-btn ${phase === p ? 'active' : ''} ${focusedId.value === `tab:${p}` ? 'focused' : ''}`}
             onClick={() => (sessionPhase.value = p)}
             data-testid={`tab-${p}`}
           >
@@ -130,10 +135,10 @@ export function QuickMenu() {
             <h3 className="sticky-label" style={{ color: '#4caf50' }}>Play Next</h3>
             <ul>
               {(() => {
-                const isFocused = navItems[focusIndex.value]?.kind === 'next-drill';
+                const isFocused = focusedId.value === 'next-drill';
                 return (
                   <li
-                    className={`menu-item ${isFocused ? 'selected' : ''}`}
+                    className={`menu-item ${isFocused ? 'focused' : ''}`}
                     onClick={() => navigateToDrill(nextDrillEntry.unit.id, { autoStart: true })}
                     data-testid="menu-item-next-drill"
                   >
@@ -156,12 +161,12 @@ export function QuickMenu() {
             <ul>
               {section.entries.map((entry) => {
                 const id = entry.unit.id;
-                const isFocused = focusIndex.value === indexOfDrill(id);
+                const isFocused = focusedId.value === `drill:${id}`;
                 const isActive = currentDrillId.value === id;
                 return (
                   <li
                     key={id}
-                    className={`menu-item ${isFocused ? 'selected' : ''} ${isActive ? 'active-drill' : ''}`}
+                    className={`menu-item ${isFocused ? 'focused' : ''} ${isActive ? 'active-drill' : ''}`}
                     onClick={() => navigateToDrill(id, { autoStart: true })}
                     data-testid={`menu-item-${id}`}
                     data-active={String(isActive)}
