@@ -17,6 +17,7 @@ import { MIDI_NOTE } from '../src/audio/midi';
  */
 
 const SNARE = MIDI_NOTE.SNARE_HEAD;
+const SNARE_RIM = MIDI_NOTE.SNARE_RIM;
 
 /** Play n strokes clustered around a velocity, as a drummer would. */
 async function playLevel(hitDrum: (n: number, v: number) => Promise<void>, centre: number, n = 8) {
@@ -25,23 +26,63 @@ async function playLevel(hitDrum: (n: number, v: number) => Promise<void>, centr
   }
 }
 
-async function openCalibrator(page: import('@playwright/test').Page) {
-  await page.evaluate(async () => {
-    const m = await import('/src/components/settings/DynamicsCalibrator');
-    m.isDynamicsCalibratorOpen.value = true;
-  });
+/**
+ * Open the calibrator the way a drummer does — through the settings menu, with
+ * sticks.
+ *
+ * Not by setting the signal from `page.evaluate`: a dynamic import there
+ * resolves to a *different* module instance than the app's in Vite's dev
+ * graph, so the signal set is not the signal the app reads. Going through the
+ * menu also tests the path that actually ships.
+ */
+async function openCalibrator(
+  page: import('@playwright/test').Page,
+  hitDrum: (n: number, v: number) => Promise<void>,
+  sendCC: (c: number, v: number) => Promise<void>,
+) {
+  await expect(page.locator('.midi-status-badge')).toContainText('WebMIDI Active', { timeout: 10000 });
+
+  // Hi-hat down, double rim tap opens the menu.
+  await sendCC(4, 100);
+  await page.waitForTimeout(50);
+  await hitDrum(SNARE_RIM, 100);
+  await page.waitForTimeout(100);
+  await hitDrum(SNARE_RIM, 100);
+  await sendCC(4, 0);
+  // Clear the 80ms rim debounce before scrolling, or the first scroll is
+  // suppressed as an accidental double-trigger.
+  await page.waitForTimeout(120);
+
+  const menu = page.locator('.settings-menu-content');
+  await expect(menu).toBeVisible({ timeout: 10000 });
+
+  // Scroll until the row is focused rather than counting hits. The row index
+  // is not fixed — index 1 (Blind Mode Threshold) is hidden while blind mode
+  // is off — and a rim hit inside the 80ms debounce is legitimately dropped,
+  // so any fixed count is a race. The menu wraps, so a bounded loop always
+  // terminates.
+  const focused = menu.locator('.settings-item.focused');
+  let found = false;
+  for (let i = 0; i < 12; i++) {
+    if ((await focused.innerText()).includes('Calibrate Dynamics')) { found = true; break; }
+    await hitDrum(SNARE_RIM, 100);
+    await page.waitForTimeout(150);
+  }
+  expect(found, 'never reached the Calibrate Dynamics row').toBe(true);
+
+  await hitDrum(SNARE, 100);
   await expect(page.getByTestId('dynamics-calibrator')).toBeVisible({ timeout: 10000 });
 }
 
 test.describe('Dynamics calibration', () => {
   test('three separated levels produce thresholds for this kit', async ({
-    page, injectVirtualDrummer, hitDrum,
+    page, injectVirtualDrummer, hitDrum, sendCC,
   }) => {
     test.setTimeout(90_000);
     await injectVirtualDrummer();
-    await page.goto('/?dev=1');
+    await page.goto('/');
     await enterApp(page);
-    await openCalibrator(page);
+    await openCalibrator(page, hitDrum, sendCC);
 
     const overlay = page.getByTestId('dynamics-calibrator');
     await expect(overlay).toHaveAttribute('data-stage', 'soft');
@@ -62,13 +103,13 @@ test.describe('Dynamics calibration', () => {
   });
 
   test('refuses to invent a threshold when the levels overlap', async ({
-    page, injectVirtualDrummer, hitDrum,
+    page, injectVirtualDrummer, hitDrum, sendCC,
   }) => {
     test.setTimeout(90_000);
     await injectVirtualDrummer();
-    await page.goto('/?dev=1');
+    await page.goto('/');
     await enterApp(page);
-    await openCalibrator(page);
+    await openCalibrator(page, hitDrum, sendCC);
 
     const overlay = page.getByTestId('dynamics-calibrator');
 
