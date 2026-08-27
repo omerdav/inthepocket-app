@@ -20,9 +20,10 @@ const SNARE = MIDI_NOTE.SNARE_HEAD;
 const SNARE_RIM = MIDI_NOTE.SNARE_RIM;
 
 /** Play n strokes clustered around a velocity, as a drummer would. */
-async function playLevel(hitDrum: (n: number, v: number) => Promise<void>, centre: number, n = 8) {
+async function playLevel(hitDrum: (n: number, v: number) => Promise<void>, page: import('@playwright/test').Page, centre: number, n = 8) {
   for (let i = 0; i < n; i++) {
     await hitDrum(SNARE, centre + ((i % 5) - 2));
+    await page.waitForTimeout(20);
   }
 }
 
@@ -72,6 +73,7 @@ async function openCalibrator(
 
   await hitDrum(SNARE, 100);
   await expect(page.getByTestId('dynamics-calibrator')).toBeVisible({ timeout: 10000 });
+  await page.waitForTimeout(50); // Ensure timestamp advances for subsequent hits
 }
 
 test.describe('Dynamics calibration', () => {
@@ -88,13 +90,13 @@ test.describe('Dynamics calibration', () => {
     await expect(overlay).toHaveAttribute('data-stage', 'soft');
 
     // A kit whose ghost note lands near 45 — the case the factory numbers fail.
-    await playLevel(hitDrum, 45);
+    await playLevel(hitDrum, page, 45);
     await expect(overlay, 'eight soft strokes must advance to normal').toHaveAttribute('data-stage', 'normal');
 
-    await playLevel(hitDrum, 75);
+    await playLevel(hitDrum, page, 75);
     await expect(overlay, 'and normal must advance to hard, not stay put').toHaveAttribute('data-stage', 'hard');
 
-    await playLevel(hitDrum, 108);
+    await playLevel(hitDrum, page, 108);
     await expect(overlay).toHaveAttribute('data-stage', 'done');
 
     // The thresholds must sit between the drummer's own clusters.
@@ -116,9 +118,9 @@ test.describe('Dynamics calibration', () => {
     // Soft and normal played at essentially the same weight. There is no
     // honest boundary between them, and drawing one would fail the drummer at
     // random — the mistake the decoupling score made for weeks.
-    await playLevel(hitDrum, 60);
-    await playLevel(hitDrum, 64);
-    await playLevel(hitDrum, 108);
+    await playLevel(hitDrum, page, 60);
+    await playLevel(hitDrum, page, 64);
+    await playLevel(hitDrum, page, 108);
 
     await expect(overlay).toHaveAttribute('data-stage', 'refused');
     await expect(page.getByTestId('dyn-cal-refusal')).toContainText('soft and normal');
