@@ -247,6 +247,14 @@ Verified together on 2026-08-24. **`tsc -b` does not cover `e2e/`** — nothing 
 
 The 30 drill-audit lines assert a verdict per drill per run type, and none of them depend on live visual feedback. **If an audit row moves and your change did not touch scoring, stop and report.** Something has leaked into the grade, which is worse than whatever you were fixing.
 
+### One machine, one dev server
+
+`playwright.config.ts` sets `reuseExistingServer: false`. **Playwright will refuse to start if port 5173 is already in use.** That is deliberate.
+
+Every worktree's Playwright wants the same port, so attaching to whatever is already there meant verifying another branch's code and reporting a green result about a tree you never ran (register P-10 — it cost a full thirty-row audit that had to be discarded). A refusal costs minutes; a false green costs everything built on it.
+
+**If your run fails to start:** something else is serving 5173 — another worktree, or a dev server you left running. Stop it. Do not change this setting, and do not move to another port: the port is not the only shared resource. `workers: 1` exists because concurrent browser contexts starve the audio thread, so two suites on two ports would corrupt each other's timing just as effectively.
+
 ### Known intermittents — report as observed, do not fix
 
 - **P-1** — the audio clock wedges (renders one buffer and stops dead). Shows as `"Audio System Interrupted"` on the results screen. Proven to be a wedged output stream, not a starved thread. **It can start mid-suite**, after the preflight has already passed — the preflight is a gate, not a monitor. **A suite running much longer than ~11 minutes is a symptom**: check `node scripts/check-audio.mjs` before waiting it out. Transient and self-healing, so a green run means the window is closed, not that the fault is gone.

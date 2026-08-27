@@ -69,9 +69,32 @@ export default defineConfig({
       },
     },
   ],
+  /**
+   * Always start our own dev server; never attach to one already running.
+   *
+   * This was `reuseExistingServer: !process.env.CI`, which reads as a
+   * convenience and behaves as a trap once more than one worktree exists.
+   * Every worktree's Playwright reaches for port 5173, so a run started in one
+   * tree silently attached to a dev server left behind by another and reported
+   * a green result **about code it never executed**.
+   *
+   * That happened on 2026-08-25 (register P-10): a verification run for
+   * `task/T-046-dynamics-calibration` attached to the dev agent's server in
+   * another worktree, passed 34 tests including the full thirty-row audit, and
+   * the entire result had to be discarded. It was caught only because the two
+   * branches happened to differ visibly in the settings menu — branches
+   * differing only in logic would have produced a confident, wholly false
+   * green.
+   *
+   * With `false`, an occupied port fails the run immediately with a clear
+   * message. That is strictly better: a suite that refuses to start costs
+   * minutes, and a suite that verifies the wrong tree costs whatever is built
+   * on top of the answer. If this errors, something else is on 5173 — find it
+   * and stop it rather than working around this.
+   */
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
   },
 });
