@@ -85,11 +85,22 @@ export function DynamicsCalibrator() {
       // hit, so it wants the stream with crosstalk already filtered out.
       if (hit.note !== 38 && hit.note !== 40) return
 
+      // Copy out of the pooled event BEFORE the deferred updater runs.
+      //
+      // `_dispatchHit` hands every subscriber the same recycled HitEvent
+      // objects — a deliberate zero-allocation choice on the audio path. A
+      // `setState` updater is a closure Preact runs later, so reading
+      // `hit.velocity` inside one reads whatever that slot holds by then, not
+      // what this strike was. Harmless when strikes are seconds apart, wrong
+      // when a drummer plays eight of them in a bar, which is exactly what
+      // this screen asks for.
+      const velocity = hit.velocity
+
       setState((prev) => {
         if (prev.stage === 'done' || prev.stage === 'refused') return prev
 
         const current = prev.stage
-        const samples = { ...prev.samples, [current]: [...prev.samples[current], hit.velocity] }
+        const samples = { ...prev.samples, [current]: [...prev.samples[current], velocity] }
         if (samples[current].length < MIN_SAMPLES_PER_INTENT) {
           return { stage: current, samples }
         }
