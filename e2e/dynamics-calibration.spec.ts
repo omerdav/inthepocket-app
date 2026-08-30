@@ -19,10 +19,21 @@ import { MIDI_NOTE } from '../src/audio/midi';
 const SNARE = MIDI_NOTE.SNARE_HEAD;
 const SNARE_RIM = MIDI_NOTE.SNARE_RIM;
 
-/** Play n strokes clustered around a velocity, as a drummer would. */
+/**
+ * Play n strokes clustered around a velocity, as a drummer would.
+ *
+ * SPACED, deliberately. The first version fired eight strikes with no gap at
+ * all, which is not how anyone plays and which the app is entitled to treat as
+ * one event — the snare crosstalk filter and the UI debounce both drop strikes
+ * that arrive too close together. It passed on master by luck and failed twice
+ * on the next branch, and the difference was timing rather than anything
+ * either branch changed. 60ms is a comfortable sixteenth at 250bpm: fast, and
+ * unambiguously eight separate strokes.
+ */
 async function playLevel(hitDrum: (n: number, v: number) => Promise<void>, centre: number, n = 8) {
   for (let i = 0; i < n; i++) {
     await hitDrum(SNARE, centre + ((i % 5) - 2));
+    await new Promise((r) => setTimeout(r, 60));
   }
 }
 

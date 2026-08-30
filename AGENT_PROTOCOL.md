@@ -239,7 +239,7 @@ A task is not green unless it matches or beats these:
 | `npm run check:offline` | 18 precache entries, worklet and scoring worker present |
 | drill audit | **30 run lines**, 31 tests including the boundary guard |
 
-Verified together on 2026-08-24. **`tsc -b` does not cover `e2e/`** — nothing does, see H-9 — so a syntax error there survives every check above and surfaces only when Playwright compiles it, ten minutes in.
+**`tsc -b` now covers `e2e/` too** (`tsconfig.e2e.json`). A syntax or type error in a spec fails the build in seconds instead of surfacing ten minutes into a Playwright run. **`e2e/simulation/` is excluded** — it belongs to the simulation team and two of its files do not type-check; that is their call to make, not ours.
 
 `npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of those 88 tests. Run both, paste both.
 
