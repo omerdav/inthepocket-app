@@ -18,22 +18,54 @@ import { MIDI_NOTE } from '../src/audio/midi';
 
 const SNARE = MIDI_NOTE.SNARE_HEAD;
 const SNARE_RIM = MIDI_NOTE.SNARE_RIM;
+/** Mirrors MIN_SAMPLES_PER_INTENT; the counter renders "n / 8". */
+const MIN_SAMPLES = 8;
 
 /**
- * Play n strokes clustered around a velocity, as a drummer would.
+ * Play n strokes clustered around a velocity, waiting for each to register.
  *
- * SPACED, deliberately. The first version fired eight strikes with no gap at
- * all, which is not how anyone plays and which the app is entitled to treat as
- * one event — the snare crosstalk filter and the UI debounce both drop strikes
- * that arrive too close together. It passed on master by luck and failed twice
- * on the next branch, and the difference was timing rather than anything
- * either branch changed. 60ms is a comfortable sixteenth at 250bpm: fast, and
- * unambiguously eight separate strokes.
+ * SYNCHRONISED, not spaced. Earlier versions fired the strikes and then
+ * asserted the stage had advanced, which made the test a bet on how fast eight
+ * `page.evaluate` round trips complete relative to the app's rendering — 1 in 5
+ * at 60ms between strikes, 2 in 5 at 120ms. Widening the gap only moved the
+ * odds; nothing about the app was wrong, the test was simply outrunning it.
+ *
+ * Waiting for the counter to acknowledge each strike removes the race
+ * entirely, and reads the way a drummer plays: one, then the next.
  */
-async function playLevel(hitDrum: (n: number, v: number) => Promise<void>, centre: number, n = 8) {
+async function playLevel(
+  page: import('@playwright/test').Page,
+  hitDrum: (n: number, v: number) => Promise<void>,
+  centre: number,
+  n = 8,
+) {
+  const counter = page.getByTestId('dyn-cal-count');
   for (let i = 0; i < n; i++) {
-    await hitDrum(SNARE, centre + ((i % 5) - 2));
-    await new Promise((r) => setTimeout(r, 60));
+    // Retry until the strike is acknowledged.
+    //
+    // The overlay becomes visible before its subscription exists — the hit
+    // listener is installed in a useEffect, which Preact runs after paint — so
+    // a strike sent the instant the screen appears is dropped. Waiting for
+    // visibility is not waiting for readiness, and that one lost strike is the
+    // whole of P-13: the level then never reaches eight and the stage never
+    // advances.
+    //
+    // A drummer hitting the moment the prompt appears loses that stroke too.
+    // That is a real if minor product wrinkle, recorded separately rather than
+    // hidden by this loop — here it just stops the test being a race.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await hitDrum(SNARE, centre + ((i % 5) - 2));
+      if (i === n - 1) break; // the last strike ends the level; nothing stable to poll
+      const settled = await counter
+        .textContent()
+        .then((t) => t?.startsWith(`${i + 1} `) ?? false)
+        .catch(() => false);
+      if (settled) break;
+      await page.waitForTimeout(120);
+    }
+    if (i < n - 1) {
+      await expect(counter).toHaveText(`${i + 1} / ${MIN_SAMPLES}`, { timeout: 5000 });
+    }
   }
 }
 
@@ -99,13 +131,13 @@ test.describe('Dynamics calibration', () => {
     await expect(overlay).toHaveAttribute('data-stage', 'soft');
 
     // A kit whose ghost note lands near 45 — the case the factory numbers fail.
-    await playLevel(hitDrum, 45);
+    await playLevel(page, hitDrum, 45);
     await expect(overlay, 'eight soft strokes must advance to normal').toHaveAttribute('data-stage', 'normal');
 
-    await playLevel(hitDrum, 75);
+    await playLevel(page, hitDrum, 75);
     await expect(overlay, 'and normal must advance to hard, not stay put').toHaveAttribute('data-stage', 'hard');
 
-    await playLevel(hitDrum, 108);
+    await playLevel(page, hitDrum, 108);
     await expect(overlay).toHaveAttribute('data-stage', 'done');
 
     // The thresholds must sit between the drummer's own clusters.
@@ -127,9 +159,9 @@ test.describe('Dynamics calibration', () => {
     // Soft and normal played at essentially the same weight. There is no
     // honest boundary between them, and drawing one would fail the drummer at
     // random — the mistake the decoupling score made for weeks.
-    await playLevel(hitDrum, 60);
-    await playLevel(hitDrum, 64);
-    await playLevel(hitDrum, 108);
+    await playLevel(page, hitDrum, 60);
+    await playLevel(page, hitDrum, 64);
+    await playLevel(page, hitDrum, 108);
 
     await expect(overlay).toHaveAttribute('data-stage', 'refused');
     await expect(page.getByTestId('dyn-cal-refusal')).toContainText('soft and normal');
