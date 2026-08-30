@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { enterApp } from './helpers';
-import { STORE_PROGRESSION } from '../src/store/db';
 
 const SEED_STATE = {
   drills: {

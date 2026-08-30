@@ -65,7 +65,11 @@ export const test = base.extend<VirtualDrummerFixtures>({
             if (mockMIDIAccess.onstatechange) {
               const event = new Event('statechange');
               (event as any).port = { ...mockInput, state: 'disconnected' };
-              mockMIDIAccess.onstatechange(event);
+              // The handler is typed to take a MIDIConnectionEvent; the mock
+              // builds a plain Event and attaches `port`, which is what the
+              // app actually reads. Cast at the call rather than pretending
+              // the mock is a real MIDIConnectionEvent.
+              (mockMIDIAccess.onstatechange as (e: Event) => void)(event);
             }
           },
           connect: () => {
@@ -73,7 +77,11 @@ export const test = base.extend<VirtualDrummerFixtures>({
             if (mockMIDIAccess.onstatechange) {
               const event = new Event('statechange');
               (event as any).port = { ...mockInput, state: 'connected' };
-              mockMIDIAccess.onstatechange(event);
+              // The handler is typed to take a MIDIConnectionEvent; the mock
+              // builds a plain Event and attaches `port`, which is what the
+              // app actually reads. Cast at the call rather than pretending
+              // the mock is a real MIDIConnectionEvent.
+              (mockMIDIAccess.onstatechange as (e: Event) => void)(event);
             }
           },
           hit: (noteNumber: number, velocity: number, timestampMs = performance.now()) => {

@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
+    "target": "es2023",
+    "module": "esnext",
+    "lib": ["ES2023", "DOM"],
+    /*
+     * vite/client alongside node: specs run under Node, but the app modules
+     * they import use Vite's query suffixes (./x.ts?worker&url), whose ambient
+     * declarations live in vite/client. Without it those imports fail to
+     * resolve here while compiling perfectly in the app project.
+     */
+    "types": ["node", "vite/client"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    /*
+     * Specs reach into the app from inside page.evaluate with Vite's
+     * dev-server URLs — import('/src/audio/AudioEngine.ts'). Those resolve at
+     * runtime because Vite serves them, and are unresolvable to tsc without
+     * this mapping. Teaching it the mapping does more than silence eleven
+     * errors: it type-checks what those evaluate blocks actually pull in.
+     */
+    "paths": { "/src/*": ["./src/*"] },
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["e2e", "playwright.config.ts"],
+  /*
+   * e2e/simulation/ belongs to the simulation team (AGENT_PROTOCOL §4), and
+   * two of its files do not type-check. Fixing them would mean editing another
+   * team's code without asking — the exact thing H-8 was filed for. Excluded
+   * here and raised with them instead; the day they want it, deleting these
+   * two lines is the whole change.
+   */
+  "exclude": ["e2e/simulation"]
+}

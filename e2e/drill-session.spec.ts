@@ -16,7 +16,6 @@ import { getDrill } from '../src/data/registry';
  * production path.
  */
 
-const SNARE_HEAD = 38;
 const NOTE_COUNT = 16;      // 2 bars of eighths
 const NOTE_SPACING_MS = 375; // 80 BPM eighths
 const ACCENT_EVERY = 8;      // one accent per bar
