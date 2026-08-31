@@ -68,6 +68,18 @@ export default defineConfig({
         baseURL: 'http://localhost:4173',
       },
     },
+    {
+      name: 'install',
+      testDir: './e2e',
+      testMatch: '**/install.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:4174',
+        launchOptions: {
+          args: ['--autoplay-policy=no-user-gesture-required'],
+        },
+      },
+    },
   ],
   /**
    * Always start our own dev server; never attach to one already running.
