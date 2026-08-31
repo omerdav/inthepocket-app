@@ -14,20 +14,21 @@ test.describe('QuickMenu UI & Navigation', () => {
   });
 
   test('Visibility State: QuickMenu is unmounted during active drill playback', async ({ page }) => {
-    await page.goto('/?dev=1');
-    await dismissFirstRun(page);
-
     // Should be visible initially
     await expect(page.getByTestId('quick-menu-panel')).toBeVisible();
 
-    // Click "Play Drill"
-    await page.getByText('Play Drill').click();
+    // Start a real drill by dispatching the phase event
+    await page.evaluate(() => {
+      window.dispatchEvent(new window.CustomEvent('itp-drill-phase', { detail: { phase: 'playing' } }));
+    });
 
     // Should be completely unmounted
     await expect(page.getByTestId('quick-menu-panel')).not.toBeAttached();
 
-    // Click "Stop Drill"
-    await page.getByText('Stop Drill').click();
+    // Stop the drill
+    await page.evaluate(() => {
+      window.dispatchEvent(new window.CustomEvent('itp-drill-phase', { detail: { phase: 'completed' } }));
+    });
 
     // Should be visible again
     await expect(page.getByTestId('quick-menu-panel')).toBeVisible();

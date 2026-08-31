@@ -40,6 +40,27 @@ function getAllFiles(dirPath: string, arrayOfFiles: string[] = []) {
  */
 const ALLOWED = new Map<string, RegExp>([])
 
+const SECOND_SURFACE = new Set([
+  'itp-simulate-hit',
+  'itp-force-render',
+  'itp-correlator-mock',
+  'dataset.lastOpacity',
+  'dataset.lastHitColor',
+  'dataset.playheadX',
+  'dataset.noteX',
+  '(window as any).setHitVisualMode',
+  '(window as any).setStickingCuePlacement',
+  'itp-set-blind-mode'
+]);
+
+const PRODUCT_ALLOWED = new Set([
+  'itp-drill-phase',
+  'dataset.testid',
+  '(window as any)._stickNavCtrl',
+  '(window as any).__virtualDrummer',
+  '(window as any).calibrateHiHat'
+]);
+
 describe('R6 Guard: No E2E hooks in production code', () => {
   it('src/ contains no __E2E_ hooks and no undocumented navigator.webdriver', () => {
     const files = getAllFiles('src');
@@ -57,6 +78,13 @@ describe('R6 Guard: No E2E hooks in production code', () => {
 
       if (content.includes('navigator.webdriver') && !ALLOWED.get(rel)?.test('navigator.webdriver')) {
         violations.push(`${rel} — navigator.webdriver`);
+      }
+
+      const matches = content.match(/(itp-[a-z0-9-]+|\(window as any\)\.[a-zA-Z0-9_]+|dataset\.[a-zA-Z0-9_]+)/g) || [];
+      for (const match of matches) {
+        if (!SECOND_SURFACE.has(match) && !PRODUCT_ALLOWED.has(match)) {
+          violations.push(`${rel} — unlisted scaffolding hook: ${match}`);
+        }
       }
     }
 

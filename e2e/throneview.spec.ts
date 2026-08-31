@@ -1,4 +1,5 @@
 import { test, expect, dismissFirstRun } from './fixtures/virtual-drummer';
+import { enterApp } from './helpers';
 
 test.describe('ThroneView & GrooveCircle QA', () => {
   test.beforeEach(async ({ injectVirtualDrummer }) => {
@@ -6,8 +7,10 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G1 - Blind Mode E2E', async ({ page }) => {
-    await page.goto('/?dev=1');
-    await dismissFirstRun(page);
+    await page.goto('/?drill=dynamics-gate-drill-1');
+    await enterApp(page);
+    await page.getByTestId('drill-start').click();
+    await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
     
     // Setup blind mode threshold = 4
     await page.evaluate(() => {
@@ -43,8 +46,10 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G2 - Visual Pixel Test', async ({ page }) => {
-    await page.goto('/?dev=1');
-    await dismissFirstRun(page);
+    await page.goto('/?drill=dynamics-gate-drill-1');
+    await enterApp(page);
+    await page.getByTestId('drill-start').click();
+    await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
     
     await page.clock.install({ time: 1000 });
     
@@ -59,8 +64,10 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G3 - Tuner Pulse Color', async ({ page }) => {
-    await page.goto('/?dev=1');
-    await dismissFirstRun(page);
+    await page.goto('/?drill=dynamics-gate-drill-1');
+    await enterApp(page);
+    await page.getByTestId('drill-start').click();
+    await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
 
     let earlyColor = await page.evaluate(() => {
       document.querySelector('[data-testid="groove-circle-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-simulate-hit', { detail: { type: 'early', timeMs: 1000, noFlush: false } }));
@@ -78,8 +85,10 @@ test.describe('ThroneView & GrooveCircle QA', () => {
   });
 
   test('G4 - Arrow Indicator', async ({ page }) => {
-    await page.goto('/?dev=1');
-    await dismissFirstRun(page);
+    await page.goto('/?drill=dynamics-gate-drill-1');
+    await enterApp(page);
+    await page.getByTestId('drill-start').click();
+    await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
     
     let perfectColor = await page.evaluate(() => {
       if ((window as any).setHitVisualMode) {
@@ -106,8 +115,10 @@ test.describe('ThroneView & GrooveCircle QA', () => {
     expect(lateColor).toBe('hsl(0, 80%, 55%)'); // Red
   });
   test('G5 - Coalescing Simultaneous Hits (R2)', async ({ page }) => {
-    await page.goto('/?dev=1');
-    await dismissFirstRun(page);
+    await page.goto('/?drill=dynamics-gate-drill-1');
+    await enterApp(page);
+    await page.getByTestId('drill-start').click();
+    await expect(page.getByTestId('playing')).toBeVisible({ timeout: 10000 });
     
     let worstColor = await page.evaluate(async () => {
       // Simulate two hits in the same frame (within 30ms window)
