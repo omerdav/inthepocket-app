@@ -20,6 +20,15 @@ export interface HiHatCalibrationRecord {
   min: number
   /** Raw CC value at fully closed. May be lower than min on inverted kits. */
   max: number
+  /**
+   * Which continuous controller this kit's pedal sends (register P-15).
+   *
+   * Optional so profiles stored before this existed still load; absent means
+   * the conventional CC#4. The range was always calibrated per kit — the
+   * controller number simply never joined it, which left the pedal inert on
+   * any module that does not follow the convention.
+   */
+  cc?: number
   calibratedAt: number
 }
 
@@ -57,9 +66,23 @@ export class ProfilesStore {
     await this._db.put(STORE_PROFILES, PROFILE_KEY, { ...profile, updatedAt: Date.now() })
   }
 
-  async saveHiHatCalibration(min: number, max: number, now = Date.now()): Promise<void> {
+  /**
+   * Options rather than positional arguments.
+   *
+   * `cc` was briefly a third positional parameter, which silently turned an
+   * existing `saveHiHatCalibration(min, max, now)` call into one that stored a
+   * timestamp as the controller number. Naming them makes that impossible.
+   */
+  async saveHiHatCalibration(
+    min: number,
+    max: number,
+    opts: { cc?: number; now?: number } = {}
+  ): Promise<void> {
     const profile = await this.load()
-    await this.save({ ...profile, hiHat: { min, max, calibratedAt: now } })
+    await this.save({
+      ...profile,
+      hiHat: { min, max, cc: opts.cc, calibratedAt: opts.now ?? Date.now() },
+    })
   }
 
   async saveDynamicsCalibration(calibration: DynamicsCalibration): Promise<void> {

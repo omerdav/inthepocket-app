@@ -1,5 +1,7 @@
-import { signal, useSignal, useSignalEffect } from '@preact/signals';
+import { useLayoutEffect, useRef } from 'preact/hooks';
+import { signal, useSignal } from '@preact/signals';
 import { midiEngine } from '../../audio/midi';
+import { detectPedalCC, type CcObservation } from '../../audio/pedalDetection';
 import { profilesStore } from '../../store';
 
 export const isCalibrationOpen = signal<boolean>(false);
@@ -23,16 +25,57 @@ export function HiHatCalibration() {
   const closedValue = useSignal<number>(127);
   const currentValue = useSignal<number>(0);
 
-  // Poll current CC#4 value for UI feedback
-  useSignalEffect(() => {
+  /**
+   * Watch every controller, not just CC#4, and work out which one is the pedal
+   * (register P-15).
+   *
+   * This screen used to poll `midiEngine.cc4Value`, which meant that on a kit
+   * whose pedal sends anything other than CC#4 the readout never moved — so
+   * the drummer could not calibrate the pedal, and could not tell that from a
+   * pedal that was not connected. The controller number is a convention, not a
+   * standard.
+   *
+   * Detection costs the drummer nothing extra: they are already being asked to
+   * work the pedal fully open and fully closed, which is exactly the movement
+   * that identifies it.
+   *
+   * useLayoutEffect so the subscription exists before the prompt is painted —
+   * see C-52, where a screen visible but not yet listening dropped the first
+   * input it asked for.
+   */
+  const observations = useRef<CcObservation[]>([]);
+  const detectedCc = useSignal<number | null>(null);
+
+  useLayoutEffect(() => {
     if (!isCalibrationOpen.value) return;
 
-    const interval = setInterval(() => {
-      currentValue.value = midiEngine.cc4Value;
-    }, 50);
+    const unsubscribe = midiEngine.onControlChange((cc, value) => {
+      const seen = observations.current;
+      // Bounded: a long calibration must not grow this without limit on the
+      // MIDI path. Recent movement is what identifies the pedal anyway.
+      if (seen.length >= 512) seen.shift();
+      seen.push({ cc, value });
 
-    return () => clearInterval(interval);
-  });
+      const result = detectPedalCC(seen);
+      if (result.found && result.cc !== detectedCc.value) {
+        detectedCc.value = result.cc;
+        // Apply immediately so the rest of the app — and the readout below —
+        // starts following this kit's actual pedal.
+        midiEngine.setPedalCC(result.cc);
+      }
+
+      if (detectedCc.value === null || cc === detectedCc.value) {
+        // Before detection settles, show whatever is moving, so the drummer
+        // gets feedback rather than a dead number.
+        currentValue.value = value;
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      observations.current = [];
+    };
+  }, [isCalibrationOpen.value]);
 
   if (!isCalibrationOpen.value) return null;
 
@@ -48,7 +91,7 @@ export function HiHatCalibration() {
       // Calibrate engine, then persist — otherwise every reload asks the
       // drummer to recalibrate a pedal that has not moved.
       (window as any).calibrateHiHat?.(openValue.value, closedValue.value);
-      void profilesStore.saveHiHatCalibration(openValue.value, closedValue.value);
+      void profilesStore.saveHiHatCalibration(openValue.value, closedValue.value, { cc: detectedCc.value ?? undefined });
       hasCompletedHiHatCalibration.value = true;
       isCalibrationOpen.value = false;
     }
