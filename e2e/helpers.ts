@@ -13,13 +13,15 @@ import { dismissFirstRun } from './fixtures/virtual-drummer'
  * Playwright's Chromium enforces the autoplay policy, so the tap step here is
  * a real test of the gesture requirement, not a formality.
  */
-export async function enterApp(page: Page): Promise<void> {
+export async function enterApp(page: Page, options: { skipFirstRunDismissal?: boolean } = {}): Promise<void> {
   const warmup = page.getByTestId('engine-warmup')
 
   // Already inside (dev route, or autoplay was granted and a kit answered).
   if ((await warmup.count()) === 0) {
-    await dismissFirstRun(page)
-    await expect(page.getByTestId('drill-session')).toBeVisible()
+    if (!options.skipFirstRunDismissal) {
+      await dismissFirstRun(page)
+      await expect(page.getByTestId('drill-session')).toBeVisible()
+    }
     return
   }
 
@@ -59,6 +61,8 @@ export async function enterApp(page: Page): Promise<void> {
     await page.getByTestId('warmup-skip').click({ timeout: 10000 })
   }
 
-  await dismissFirstRun(page)
-  await expect(page.getByTestId('drill-session')).toBeVisible({ timeout: 10000 })
+  if (!options.skipFirstRunDismissal) {
+    await dismissFirstRun(page)
+    await expect(page.getByTestId('drill-session')).toBeVisible({ timeout: 10000 })
+  }
 }

@@ -1,12 +1,15 @@
 import { test, expect } from './fixtures/virtual-drummer';
 
+import { enterApp } from './helpers';
+
 test.describe('First-run overlays (T-029)', () => {
   test.beforeEach(async ({ injectVirtualDrummer }) => {
     await injectVirtualDrummer();
   });
 
   test('Placement diagnostic renders and can be skipped', async ({ page }) => {
-    await page.goto('/?dev=1');
+    await page.goto('/');
+    await enterApp(page, { skipFirstRunDismissal: true });
     
     const diag = page.getByTestId('diagnostic-overlay');
     await expect(diag).toBeVisible();
@@ -20,7 +23,8 @@ test.describe('First-run overlays (T-029)', () => {
   });
 
   test('Hi-hat calibration renders and can be completed', async ({ page }) => {
-    await page.goto('/?dev=1');
+    await page.goto('/');
+    await enterApp(page, { skipFirstRunDismissal: true });
     
     // Skip diagnostic to reach hi-hat
     const diag = page.getByTestId('diagnostic-overlay');

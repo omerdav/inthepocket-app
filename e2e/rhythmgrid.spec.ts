@@ -1,23 +1,19 @@
-import { test, expect, dismissFirstRun } from './fixtures/virtual-drummer';
+import { test, expect } from './fixtures/virtual-drummer';
+
+import { enterApp } from './helpers';
 
 test.describe('RhythmGrid Component', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/?dev=1');
-    await dismissFirstRun(page);
+    await page.goto('/?drill=dynamics-gate-drill-1');
+    await enterApp(page);
   });
 
   test('G5 - Playhead Alignment', async ({ page }) => {
-    // Load a DrillSequence with note at 1000ms. Force internal mock clock to 1000ms.
-    // Assert playhead X matches note X exactly.
+    // We rely on dynamics-gate-drill-1. Its first note is at 0ms.
+    // Force internal mock clock to 0ms. Assert playhead X matches note X exactly.
     await page.evaluate(() => {
       // Mock clock
-      document.querySelector('[data-testid="rhythm-grid-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-correlator-mock', { detail: { timeMs: 1000 } }));
-      
-      // Inject drill sequence with note at 1000ms if needed, 
-      // but assuming the dev team provided default sequence or it's accessible:
-      if ((window as any).setDrillSequence) {
-        (window as any).setDrillSequence([{ time: 1000, type: 'snare' }]);
-      }
+      document.querySelector('[data-testid="rhythm-grid-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-correlator-mock', { detail: { timeMs: 0 } }));
     });
 
     await page.waitForTimeout(100);
@@ -29,10 +25,11 @@ test.describe('RhythmGrid Component', () => {
     // Or we just evaluate a boolean if they wrote a helper.
     // For now we'll do our best:
     const isAligned = await page.evaluate(() => {
-      if ((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.playheadX !== undefined && (document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.noteX !== undefined) {
-        return parseFloat((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.playheadX || '0') === parseFloat((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.noteX || '0');
+      const canvas = document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement;
+      if (!canvas || canvas.dataset.playheadX === undefined || canvas.dataset.noteX === undefined) {
+        return false;
       }
-      return true; // fallback to true if no coordinate hook exists yet
+      return parseFloat(canvas.dataset.playheadX) === parseFloat(canvas.dataset.noteX);
     });
     expect(isAligned).toBe(true);
   });
@@ -40,9 +37,10 @@ test.describe('RhythmGrid Component', () => {
   test('G6 - Sticking Cue Snapshot', async ({ page }) => {
     const canvas = page.locator('canvas').last();
     
-    // Freeze the clock at 1500ms so the snare note (which has a sticking 'L') is exactly on the playhead.
+    // Freeze the clock at 375ms so the snare note (which has a sticking 'L') is exactly on the playhead.
+    // dynamics-gate-drill-1 has its second note (L) at 375ms.
     await page.evaluate(() => {
-      document.querySelector('[data-testid="rhythm-grid-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-correlator-mock', { detail: { timeMs: 1500 } }));
+      document.querySelector('[data-testid="rhythm-grid-canvas"]')?.dispatchEvent(new window.CustomEvent('itp-correlator-mock', { detail: { timeMs: 375 } }));
     });
     
     await page.waitForTimeout(100);
@@ -70,14 +68,9 @@ test.describe('RhythmGrid Component', () => {
   });
 
   test('R-T2: Grid is in a stable resting state (not scrolling) before start', async ({ page }) => {
-    // Inject a drill sequence, but no correlator and no startPerfMs.
-    // The note should be drawn at a stable X coordinate.
-    await page.evaluate(() => {
-      if ((window as any).setDrillSequence) {
-        (window as any).setDrillSequence([{ targetTimeMs: 1000, drumType: 'snare', sticking: '', isAccent: false }]);
-      }
-    });
-
+    // We rely on dynamics-gate-drill-1 sequence already injected via the drill session.
+    // The drill has not started, so no correlator and no startPerfMs.
+    // The first note should be drawn at a stable X coordinate.
     await page.waitForTimeout(100);
 
     const getNoteX = () => page.evaluate(() => parseFloat((document.querySelector('[data-testid="rhythm-grid-canvas"]') as HTMLElement)?.dataset.noteX || '-1'));
