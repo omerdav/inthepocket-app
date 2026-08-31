@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process'
+import { startServerWatch } from './server-watch'
 
 /**
  * Stops the suite when this machine cannot run an audio clock (T-032).
@@ -28,5 +29,11 @@ export default function globalSetup() {
     // other failure — probe missing, browser refused to launch, timeout — is a
     // broken tool, and a broken tool must not be why nothing can run.
     console.log('Audio preflight could not run, continuing suite...')
+  }
+
+  try {
+    return startServerWatch();
+  } catch (err) {
+    console.error('Server watcher failed to start, ignoring...', err);
   }
 }
