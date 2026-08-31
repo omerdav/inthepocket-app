@@ -12,6 +12,7 @@ import type {
 } from '../workers/scoring.types'
 import { SCORING_CATEGORIES } from '../workers/scoring.types'
 import { SAB_NEXT_BEAT_NS, SAB_RUNNING, NS_PER_SEC } from '../audio/metronomeSab'
+import { explainAudioStall } from '../audio/audioDeviceWatch'
 
 /**
  * Plays a ContentUnit and grades it.
@@ -169,7 +170,7 @@ export class DrillRunner {
       } else if (e.message === 'tab-hidden') {
         return this._abortResult(unit, 'audio-stall', 'Drill Paused', 'The drill was stopped because the tab was hidden.')
       } else if (e.message === 'audio-stall') {
-        return this._abortResult(unit, 'audio-stall', 'Audio System Interrupted', 'The browser audio engine stalled.')
+        return this._abortResult(unit, 'audio-stall', 'Audio System Interrupted', explainAudioStall(Date.now()))
       } else if (e.message.includes('Metronome did not start')) {
         return this._abortResult(unit, 'audio-stall', 'Audio System Interrupted', 'The metronome failed to start. Please try again.')
       }
