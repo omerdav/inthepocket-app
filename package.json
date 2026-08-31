@@ -14,6 +14,7 @@
     "check:isolation": "npm run build && node scripts/check-isolation.mjs",
     "check:offline": "npm run build && node scripts/check-precache.mjs",
     "test:e2e:offline": "npm run build && node scripts/test-offline.mjs",
+    "test:e2e:install": "npm run build && node scripts/test-install.mjs",
     "generate:icons": "pwa-assets-generator"
   },
   "dependencies": {
