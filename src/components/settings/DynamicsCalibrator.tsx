@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'preact/hooks'
+import { useState, useEffect, useLayoutEffect, useRef } from 'preact/hooks'
 import { signal, useSignalEffect } from '@preact/signals'
 import { midiEngine } from '../../audio/midi'
 import { profilesStore } from '../../store'
@@ -61,21 +61,38 @@ export function DynamicsCalibrator() {
   }
 
   /**
-   * Reset on the transition into open, not on every render.
+   * Reset on CLOSE, never on open (register P-14).
    *
-   * `useSignalEffect` re-runs whenever its callback is re-created, which is
-   * every render — and a render happens on every strike. Resetting there sent
-   * the stage back to `soft` after each hit, so the flow could never advance.
-   * The ref makes it fire once per opening.
+   * Resetting when the signal flips to open looks equivalent and is not. The
+   * order is: signal set, render, subscription installed, paint, and only then
+   * the signal effect. A strike arriving in that window was recorded and then
+   * wiped by the reset that ran after it — which is why the counter sat at
+   * 0 / 8 for the opening strike, and why spacing the strokes never helped:
+   * the loss happens once, at the start, not per stroke.
+   *
+   * Clearing on the way out leaves nothing to race. The screen opens with the
+   * state the last close left behind, which is empty.
    */
   const wasOpen = useRef(false)
   useSignalEffect(() => {
     const open = isDynamicsCalibratorOpen.value
-    if (open && !wasOpen.current) reset()
+    if (!open && wasOpen.current) reset()
     wasOpen.current = open
   })
 
-  useEffect(() => {
+  /**
+   * useLayoutEffect, not useEffect (register P-14).
+   *
+   * A plain effect runs *after* paint, so this screen was visible — telling the
+   * drummer to hit something — before it was listening. A strike in that window
+   * went nowhere. The drummer hits, sees no response, and has no way to tell
+   * whether the app, the cable or their pad is at fault.
+   *
+   * A layout effect runs before the browser paints, so the subscription exists
+   * by the time the prompt is on screen. Nothing here touches layout, so there
+   * is no cost to running it earlier.
+   */
+  useLayoutEffect(() => {
     if (!isDynamicsCalibratorOpen.value) return
 
     // Subscribed once for the whole flow. The stage is read inside the

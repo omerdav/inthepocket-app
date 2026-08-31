@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'preact/hooks'
+import { useState, useEffect, useLayoutEffect, useRef } from 'preact/hooks'
 import { audioEngine } from '../../audio/AudioEngine'
 import { midiEngine, type HitEvent } from '../../audio/midi'
 import './EngineWarmup.css'
@@ -62,7 +62,19 @@ export function EngineWarmup({ onReady }: Props) {
   }, [])
 
   // Listen for the kit only while that step is showing.
-  useEffect(() => {
+  /**
+   * useLayoutEffect, not useEffect (register P-14).
+   *
+   * A plain effect runs *after* paint, so this screen was visible — telling the
+   * drummer to hit something — before it was listening. A strike in that window
+   * went nowhere. The drummer hits, sees no response, and has no way to tell
+   * whether the app, the cable or their pad is at fault.
+   *
+   * A layout effect runs before the browser paints, so the subscription exists
+   * by the time the prompt is on screen. Nothing here touches layout, so there
+   * is no cost to running it earlier.
+   */
+  useLayoutEffect(() => {
     if (phase !== 'awaiting-kit') return
 
     const unsubscribe = midiEngine.onHit((_hit: HitEvent) => {
