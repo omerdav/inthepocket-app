@@ -15,7 +15,7 @@
  * then has to find and undo. "Restart Mapping" exists for the same reason:
  * getting this wrong once and being stuck is worse than not having it.
  */
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useLayoutEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { midiEngine } from '../../audio/midi';
 import { profilesStore } from '../../store';
@@ -35,20 +35,49 @@ export function KitMapper() {
   const [menuFocus, setMenuFocus] = useState<number>(0);
   const [padToMap, setPadToMap] = useState<DrumType | null>(null);
 
+  /**
+   * Reset on CLOSE, never on open (register P-14).
+   *
+   * Same shape, same bug as the dynamics calibrator: the order is signal set,
+   * render, subscription installed, paint, and only then this effect. A strike
+   * arriving in that window was recorded and then wiped by a reset that ran
+   * after it — so the drummer's first hit on the very screen that says "hit
+   * your snare head" did nothing, with no way to tell that from a dead pad.
+   *
+   * Clearing on the way out leaves nothing to race. Loading the stored map
+   * stays on open, because it only adds to state rather than clearing it.
+   */
+  const wasOpen = useRef(false);
   useSignalEffect(() => {
-    if (isKitMapperOpen.value) {
-      setPhase('HEAD');
-      setCandidateNote(null);
-      setMenuFocus(0);
-      setPadToMap(null);
-      // Load existing map if any, but clear head/rim to force them to map it first so they have navigation
+    const open = isKitMapperOpen.value;
+    if (open && !wasOpen.current) {
+      // Additive only: the existing map is shown, nothing is cleared.
       void profilesStore.load().then(profile => {
         setNoteMap(profile.noteMap || {});
       });
     }
+    if (!open && wasOpen.current) {
+      setPhase('HEAD');
+      setCandidateNote(null);
+      setMenuFocus(0);
+      setPadToMap(null);
+    }
+    wasOpen.current = open;
   });
 
-  useEffect(() => {
+  /**
+   * useLayoutEffect, not useEffect (register P-14).
+   *
+   * A plain effect runs *after* paint, so this screen was visible — telling the
+   * drummer to hit something — before it was listening. A strike in that window
+   * went nowhere. The drummer hits, sees no response, and has no way to tell
+   * whether the app, the cable or their pad is at fault.
+   *
+   * A layout effect runs before the browser paints, so the subscription exists
+   * by the time the prompt is on screen. Nothing here touches layout, so there
+   * is no cost to running it earlier.
+   */
+  useLayoutEffect(() => {
     if (!isKitMapperOpen.value) return;
 
     const applyStickNav = (map: Partial<Record<DrumType, number | null>>) => {

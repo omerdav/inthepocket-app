@@ -41,29 +41,12 @@ async function playLevel(
 ) {
   const counter = page.getByTestId('dyn-cal-count');
   for (let i = 0; i < n; i++) {
-    // Retry until the strike is acknowledged.
-    //
-    // The overlay becomes visible before its subscription exists — the hit
-    // listener is installed in a useEffect, which Preact runs after paint — so
-    // a strike sent the instant the screen appears is dropped. Waiting for
-    // visibility is not waiting for readiness, and that one lost strike is the
-    // whole of P-13: the level then never reaches eight and the stage never
-    // advances.
-    //
-    // A drummer hitting the moment the prompt appears loses that stroke too.
-    // That is a real if minor product wrinkle, recorded separately rather than
-    // hidden by this loop — here it just stops the test being a race.
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await hitDrum(SNARE, centre + ((i % 5) - 2));
-      if (i === n - 1) break; // the last strike ends the level; nothing stable to poll
-      const settled = await counter
-        .textContent()
-        .then((t) => t?.startsWith(`${i + 1} `) ?? false)
-        .catch(() => false);
-      if (settled) break;
-      await page.waitForTimeout(120);
-    }
+    await hitDrum(SNARE, centre + ((i % 5) - 2));
     if (i < n - 1) {
+      // No retry. P-14 is fixed — the screen subscribes before it paints, so
+      // the opening strike lands like every other one. If this ever needs a
+      // retry loop again, the regression is in the subscription timing, not
+      // here.
       await expect(counter).toHaveText(`${i + 1} / ${MIN_SAMPLES}`, { timeout: 5000 });
     }
   }
