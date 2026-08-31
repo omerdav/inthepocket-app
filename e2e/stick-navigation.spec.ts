@@ -21,7 +21,7 @@ test('R3: Stick navigation round trip: menu -> play -> result -> play again', as
   await expect(page.getByTestId('tab-fun')).toHaveClass(/focused/);
   await page.waitForTimeout(100); // 80ms UI debounce for rim hits
   await stickHit(page, 40); // stick-scroll-down
-  await expect(page.getByTestId('menu-item-dynamics-gate-drill-1')).toHaveClass(/selected/);
+  await expect(page.getByTestId('menu-item-dynamics-gate-drill-1')).toHaveClass(/focused/);
   await page.waitForTimeout(100); // Wait for debounce before select (just in case)
   
   // Setup drill start promise BEFORE selecting the drill
@@ -73,7 +73,7 @@ test('R4: Prove the mid-drill guard (stick hits during play do not trigger navig
   await expect(page.getByTestId('tab-fun')).toHaveClass(/focused/);
   await page.waitForTimeout(100);
   await stickHit(page, 40); 
-  await expect(page.getByTestId('menu-item-dynamics-gate-drill-1')).toHaveClass(/selected/);
+  await expect(page.getByTestId('menu-item-dynamics-gate-drill-1')).toHaveClass(/focused/);
   await page.waitForTimeout(100);
   
   // Setup drill start promise BEFORE selecting the drill
