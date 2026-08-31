@@ -33,5 +33,6 @@ watchAudioDevices()
  */
 void profilesStore.load().then((profile) => {
   midiEngine.setNoteMap(profile.noteMap)
+  midiEngine.setPedalCC(profile.hiHat?.cc ?? null)
   setDynamicsCalibration(profile.dynamics)
 })

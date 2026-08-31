@@ -20,6 +20,7 @@ import { MIDI_NOTE } from './midiNotes'
 // keep working; the definition lives in the leaf to break the import cycle.
 export { MIDI_NOTE }
 import { canonicaliseNote } from '../data/utils'
+import { DEFAULT_PEDAL_CC } from './pedalDetection'
 import type { DrumType } from '../data/types'
 import { WebMidi, type Input, type NoteMessageEvent, type ControlChangeMessageEvent } from 'webmidi'
 import type { TimestampCorrelator } from './TimestampCorrelator'
@@ -269,6 +270,47 @@ export class MidiEngine {
     }
   }
 
+  /**
+   * Which continuous controller this kit's hi-hat pedal sends.
+   *
+   * Defaults to the conventional CC#4 so a kit that follows the convention
+   * needs no setup, and is overridden per profile once detected.
+   */
+  private _pedalCC: number = DEFAULT_PEDAL_CC
+
+  /** Observers of every incoming controller, for pedal detection. */
+  private _ccListeners = new Set<(cc: number, value: number) => void>()
+
+  /** Apply this kit's pedal controller. Pass null for the default. */
+  setPedalCC(cc: number | null): void {
+    this._pedalCC = cc ?? DEFAULT_PEDAL_CC
+  }
+
+  get pedalCC(): number {
+    return this._pedalCC
+  }
+
+  /**
+   * Subscribe to raw controller changes.
+   *
+   * For the calibration screen only. Everything else wants the pedal value,
+   * which is already resolved to this kit's controller.
+   */
+  onControlChange(cb: (cc: number, value: number) => void): () => void {
+    this._ccListeners.add(cb)
+    return () => this._ccListeners.delete(cb)
+  }
+
+  private _notifyControlChange(cc: number, value: number): void {
+    for (const cb of this._ccListeners) {
+      try {
+        cb(cc, value)
+      } catch {
+        // A listener must never take the MIDI path down with it.
+      }
+    }
+  }
+
   /** Current hi-hat pedal value (0-127). */
   get cc4Value(): number {
     return this._cc4Value
@@ -478,13 +520,22 @@ export class MidiEngine {
 
   /**
    * Core control-change handler. Called directly by WebMidi.
-   * Tracks CC#4 for the hi-hat pedal.
+   *
+   * Tracks whichever controller this kit uses for the hi-hat pedal. It was
+   * hardcoded to CC#4 — a convention, not a standard — which left the pedal
+   * inert on any module that sends something else (register P-15).
    */
   private _handleControlChange(e: ControlChangeMessageEvent): void {
-    if (e.controller.number === 4) {
-      // `Number(...)` because the installed @types/webmidi (v2) does not match
-      // the webmidi v3 runtime, and types `value` too loosely to multiply.
-      this._cc4Value = Math.round(Number(e.value ?? 0) * 127)
+    const cc = e.controller.number
+    const raw = Math.round(Number(e.value ?? 0) * 127)
+
+    // Every controller is offered to observers, whatever this kit's pedal
+    // turns out to be. That is how the calibration screen identifies the
+    // pedal: it watches the drummer work it and sees which controller moves.
+    if (this._ccListeners.size > 0) this._notifyControlChange(cc, raw)
+
+    if (cc === this._pedalCC) {
+      this._cc4Value = raw
       this._hiHatTracker.processCC(this._cc4Value, e.timestamp ?? performance.now());
     }
   }

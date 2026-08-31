@@ -186,7 +186,7 @@ describe('stores round-trip through the backend', () => {
     const store = new ProfilesStore(db)
 
     // Yamaha-style: closed reads lower than open.
-    await store.saveHiHatCalibration(127, 0, T0)
+    await store.saveHiHatCalibration(127, 0, { now: T0 })
 
     const reloaded = await new ProfilesStore(db).hiHatCalibration()
     expect(reloaded).toMatchObject({ min: 127, max: 0, calibratedAt: T0 })
