@@ -1,4 +1,4 @@
-import { test, expect, dismissFirstRun } from './fixtures/virtual-drummer';
+import { test, expect } from './fixtures/virtual-drummer';
 import { enterApp } from './helpers';
 
 test.describe('ThroneView & GrooveCircle QA', () => {

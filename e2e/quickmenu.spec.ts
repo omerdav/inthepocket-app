@@ -1,5 +1,4 @@
 import { test, expect } from './fixtures/virtual-drummer';
-import { dismissFirstRun } from './fixtures/virtual-drummer';
 import { enterApp } from './helpers';
 
 test.describe('QuickMenu UI & Navigation', () => {
