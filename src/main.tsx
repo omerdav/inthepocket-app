@@ -5,6 +5,7 @@ import { registerServiceWorker } from './registerServiceWorker.ts'
 import { profilesStore } from './store'
 import { setDynamicsCalibration } from './data/dynamics'
 import { midiEngine } from './audio/midi'
+import { watchAudioDevices } from './audio/audioDeviceWatch'
 import { errorReporter } from './ErrorReporter.ts'
 
 errorReporter.init()
@@ -13,6 +14,10 @@ render(<App />, document.getElementById('app')!)
 
 // Offline shell (8.3). No-op in dev; see registerServiceWorker.
 registerServiceWorker()
+
+// Notice audio devices coming and going, so a stalled drill can say why
+// (register P-1). Cheap: one listener, no polling.
+watchAudioDevices()
 
 /**
  * Apply this drummer's kit profile before any MIDI arrives.
