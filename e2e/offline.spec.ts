@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/virtual-drummer';
 import { dismissFirstRun } from './fixtures/virtual-drummer';
+import { awaitEntryState } from './helpers';
 
 const NOTE_COUNT = 16;
 const NOTE_SPACING_MS = 375;
@@ -7,7 +8,12 @@ const ACCENT_EVERY = 8;
 
 async function offlineEnterApp(page: import('@playwright/test').Page): Promise<void> {
   const warmup = page.getByTestId('engine-warmup');
-  if ((await warmup.count()) === 0) {
+
+  // Same wait as `enterApp` — a count of zero here used to mean "already
+  // inside", which is also what a page that has not painted yet looks like
+  // (register P-19). This copy exists because the production build has no
+  // `/src/audio/midi.ts` to import, not because the entry logic differs.
+  if ((await awaitEntryState(page)) === 'inside') {
     await dismissFirstRun(page);
     await expect(page.getByTestId('drill-session')).toBeVisible();
     return;
