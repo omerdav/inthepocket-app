@@ -230,18 +230,28 @@ When fixing case 1, the fix must address the **cause**, not the symptom. Example
 
 A task is not green unless it matches or beats these:
 
-| | |
-|---|---|
-| `npm run build` | clean (`tsc -b && vite build`) |
-| `npm test` | **179 passing** |
-| `npm run test:e2e` | **88 passing** (product project), ~10.6 min |
-| `npm run check:isolation` | both COOP/COEP headers on the built bundle |
-| `npm run check:offline` | 18 precache entries, worklet and scoring worker present |
-| drill audit | **30 run lines**, 31 tests including the boundary guard |
+| | | Last re-derived |
+|---|---|---|
+| `npm run build` | clean (`tsc -b && vite build`) | 2026-09-17 |
+| `npm test` | **217 passing** | 2026-09-17, at `600049a` |
+| `npm run test:e2e` | **96 passing, 2 skipped** (product project), ~10.6 min | 2026-08-31, at `600049a` |
+| `npm run check:isolation` | both COOP/COEP headers on the built bundle | 2026-09-17 |
+| `npm run check:offline` | 18 precache entries, worklet and scoring worker present | 2026-09-17 |
+| drill audit | **30 run lines**, 31 tests including the boundary guard | 2026-08-31 |
+
+> **"Matches or beats" only works if the number is current, and on 2026-09-17 it was not.**
+> This table said 179 unit tests against a tree holding 217, and three other documents carried three
+> further figures (172/88, 210/94, 96+2). An agent doing exactly what this section says could have
+> deleted 38 tests and reported green. **A stale baseline is not a conservative baseline — it is a
+> hole in the guard**, and it is the same failure mode as the status log this project replaced.
+>
+> So: **if your run beats the number above, say so in your report and update this table in the same
+> commit.** That is not scope creep; it is the only thing keeping the gate real. If your run comes in
+> *below* it, that is a finding — report it, do not adjust the table to fit.
 
 **`tsc -b` now covers `e2e/` too** (`tsconfig.e2e.json`). A syntax or type error in a spec fails the build in seconds instead of surfacing ten minutes into a Playwright run. **`e2e/simulation/` is excluded** — it belongs to the simulation team and two of its files do not type-check; that is their call to make, not ours.
 
-`npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of those 88 tests. Run both, paste both.
+`npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of the 98 tests the product project now collects. Run both, paste both.
 
 ### The audit is the guard
 
