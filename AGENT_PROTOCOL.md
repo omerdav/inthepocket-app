@@ -233,8 +233,8 @@ A task is not green unless it matches or beats these:
 | | | Last re-derived |
 |---|---|---|
 | `npm run build` | clean (`tsc -b && vite build`) | 2026-09-17 |
-| `npm test` | **217 passing** | 2026-09-17, at `600049a` |
-| `npm run test:e2e` | **96 passing, 2 skipped** (product project), ~10.6 min | 2026-08-31, at `600049a` |
+| `npm test` | **220 passing** | 2026-09-17, at `f383c86` |
+| `npm run test:e2e` | **99 passing, 2 skipped, 1 known-flaky** of 102 (product project), ~11.1 min | 2026-09-17, at `f383c86` (Linux) |
 | `npm run check:isolation` | both COOP/COEP headers on the built bundle | 2026-09-17 |
 | `npm run check:offline` | 18 precache entries, worklet and scoring worker present | 2026-09-17 |
 | drill audit | **30 run lines**, 31 tests including the boundary guard | 2026-08-31 |
@@ -251,7 +251,9 @@ A task is not green unless it matches or beats these:
 
 **`tsc -b` now covers `e2e/` too** (`tsconfig.e2e.json`). A syntax or type error in a spec fails the build in seconds instead of surfacing ten minutes into a Playwright run. **`e2e/simulation/` is excluded** — it belongs to the simulation team and two of its files do not type-check; that is their call to make, not ours.
 
-`npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of the 98 tests the product project now collects. Run both, paste both.
+`npm run test:e2e` is **not** an alias for the drill-audit command. The audit is 31 of the 102 tests the product project now collects. Run both, paste both.
+
+**The one known-flaky test is `throneview.spec.ts` G2 — Visual Pixel Test**, and only on Linux: it captures the Groove Circle's green perfect-hit glow, and roughly two runs in three the glow is not in the frame, giving an identical 5957-pixel diff each time. Measured 4 failures in 6 consecutive runs, **with and without the P-26 layout change**, so it is not caused by that. Its `-win32` baseline is stable and the suite was 96/2 on Windows at `600049a`. Register **P-29** — the same family as C-44, which reduced this without eliminating it. Do not re-baseline it to make it pass.
 
 ### The audit is the guard
 
