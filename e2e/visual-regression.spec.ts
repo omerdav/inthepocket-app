@@ -56,8 +56,7 @@ const DRILL_ID = 'dynamics-gate-drill-1';
  * and a shared helper would let a change made for the audit silently rewrite
  * what these snapshots photograph.
  */
-async function playPerfectRun(page: Page, drillId: string): Promise<void> {
-  const drill = getDrill(drillId)!;
+async function armAndStart(page: Page): Promise<void> {
 
   await page.evaluate(() => {
     (window as any).__drillStart = new Promise<number>((resolve) => {
@@ -78,8 +77,18 @@ async function playPerfectRun(page: Page, drillId: string): Promise<void> {
   });
 
   await page.getByTestId('drill-start').click();
+}
 
-  await page.evaluate(
+/**
+ * Play the sequence. Returned **unawaited** by design: the count-in is on
+ * screen while this is still waiting for `__drillStart`, and awaiting it first
+ * would mean photographing a count-in that finished seconds ago — which is
+ * exactly how the first run of this spec failed.
+ */
+function playSequence(page: Page, drillId: string): Promise<void> {
+  const drill = getDrill(drillId)!;
+
+  return page.evaluate(
     async ({ sequence, drumTypeToMidi, bpm }: { sequence: DrillNote[]; drumTypeToMidi: Record<string, number>; bpm: number }) => {
       const start: number = await (window as any).__drillStart;
       const vd = (window as any).__virtualDrummer;
@@ -148,6 +157,39 @@ for (const vp of VIEWPORTS) {
       // ---- 2. The drill at rest, before Start ------------------------------
       const startButton = page.getByTestId('drill-start');
       await expect(startButton).toBeVisible({ timeout: 10000 });
+
+      /**
+       * Structural guard for register P-26, asserted before the pixels.
+       *
+       * The starter stylesheet constrained `#app` to 1126px while `ThroneView`
+       * is `100vw`, so every display wider than that overflowed and carried the
+       * QuickMenu off the screen — at 1920 it began 52px past the right edge, at
+       * 3440 it began 812px past. The drill list is the only way to choose a
+       * drill with sticks, so the app's whole premise was unreachable on both
+       * desktop widths.
+       *
+       * Stated as geometry rather than left to the snapshots because a pixel
+       * diff would only say "this looks different". This says which element left
+       * the screen, and `toBeVisible` cannot: Playwright counts an element that
+       * is scrolled out of the viewport as visible, which is exactly why the
+       * first version of this spec photographed an off-screen menu and passed.
+       */
+      const geometry = await page.evaluate(() => {
+        const doc = document.documentElement;
+        const menu = document.querySelector('[data-testid="quick-menu-panel"]')!.getBoundingClientRect();
+        return {
+          horizontalOverflowPx: doc.scrollWidth - window.innerWidth,
+          menuLeft: Math.round(menu.left),
+          menuRight: Math.round(menu.right),
+          viewportWidth: window.innerWidth,
+        };
+      });
+      expect(geometry.horizontalOverflowPx, `page scrolls horizontally at ${vp.width}px`).toBe(0);
+      expect(geometry.menuLeft, `drill list starts off the left edge at ${vp.width}px`).toBeGreaterThanOrEqual(0);
+      expect(
+        geometry.menuRight,
+        `drill list runs past the right edge at ${vp.width}px — it is the only stick-driven way to pick a drill`
+      ).toBeLessThanOrEqual(geometry.viewportWidth);
       await expect(page).toHaveScreenshot(`${vp.name}-2-drill-at-rest.png`, {
         animations: 'disabled',
       });
@@ -187,7 +229,8 @@ for (const vp of VIEWPORTS) {
       // taken, and the circle is running its render loop. Mask both rather than
       // loosen the threshold (R3) — what this snapshot is for is the *layout*
       // around them at each width, which is what 5b.7 asks about.
-      await playPerfectRun(page, DRILL_ID);
+      await armAndStart(page);
+      const playing = playSequence(page, DRILL_ID);
       const countIn = page.getByTestId('count-in');
       await expect(countIn).toBeVisible({ timeout: 15000 });
       await expect(page).toHaveScreenshot(`${vp.name}-4-count-in.png`, {
@@ -195,15 +238,24 @@ for (const vp of VIEWPORTS) {
         mask: [countIn, page.getByTestId('groove-circle-canvas')],
       });
 
+      await playing;
+
       // ---- 5. The result screen after a completed drill --------------------
       const result = page.getByTestId('drill-result');
       await expect(result).toBeVisible({ timeout: 60000 });
       // The accuracy figure moves with real timing jitter; the verdict and the
       // headline do not, and they are the two lines a drummer reads from the
       // throne, so they stay unmasked deliberately.
+      //
+      // The practice streak is masked here and nowhere else. Completing this
+      // drill records a practice day, and the menu re-reads progression when it
+      // re-opens, so whether the screenshot catches "0 days" or "1 days" depends
+      // on which lands first. It was the only unstable region across two runs —
+      // 403 pixels at 3440 and 651 at 1280, all of them on that one line — so it
+      // is masked rather than the threshold being raised, which R3 forbids.
       await expect(page).toHaveScreenshot(`${vp.name}-5-result.png`, {
         animations: 'disabled',
-        mask: [page.getByTestId('result-accuracy')],
+        mask: [page.getByTestId('result-accuracy'), page.getByTestId('streak')],
       });
 
     });

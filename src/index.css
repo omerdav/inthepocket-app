@@ -54,12 +54,23 @@ body {
   margin: 0;
 }
 
+/**
+ * The app owns the whole viewport (register P-26).
+ *
+ * This was the Preact starter's `#app`: `width: 1126px; margin: 0 auto`, a
+ * centred column for a landing page. `ThroneView` is `width: 100vw`, so on any
+ * display wider than 1126px the starter centred a 1126px box and the app then
+ * overflowed it — pushing everything right by half the difference and carrying
+ * the last flex child, the QuickMenu, off the screen entirely.
+ *
+ * Measured before the fix: at 1920 the page scrolled to 2318px and the drill
+ * list sat at x=1972, fully outside the viewport; at 3440 it sat at x=4252,
+ * 812px past the right edge. The menu is the only way to choose a drill with
+ * sticks, so on both desktop widths the mouse-free premise was unreachable —
+ * and nothing caught it, because no test had ever looked at a second width.
+ */
 #app {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
