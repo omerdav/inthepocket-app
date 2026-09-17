@@ -42,7 +42,8 @@ test.describe('Settings Menu UI E2E', () => {
     await expect(menu.locator('.settings-item.focused')).toContainText('Blind Mode');
 
     // Blind mode OFF, so index 1 is skipped. Items: 0 Blind Mode,
-    // 2 Metronome Volume, 3 Map My Kit, 4 Calibrate Dynamics, 5 Engine Error Log.
+    // 2 Metronome Volume, 3 Map My Kit, 4 Calibrate Dynamics,
+    // 5 Calibrate Hi-Hat, 6 Engine Error Log.
     // Scroll down (Snare Rim)
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
     await page.waitForTimeout(100);
@@ -57,6 +58,12 @@ test.describe('Settings Menu UI E2E', () => {
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
     await page.waitForTimeout(100);
     await expect(menu.locator('.settings-item.focused')).toContainText('Calibrate Dynamics');
+
+    // Scroll down. P-23 added hi-hat calibration, which had been reachable only
+    // on first run, beside the other two calibrations.
+    await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
+    await page.waitForTimeout(100);
+    await expect(menu.locator('.settings-item.focused')).toContainText('Calibrate Hi-Hat');
 
     // Scroll down. T-033 added the engine error log as the last item.
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100);
@@ -98,6 +105,8 @@ test.describe('Settings Menu UI E2E', () => {
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Map My Kit (T-045)
     await page.waitForTimeout(100);
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Calibrate Dynamics (T-046)
+    await page.waitForTimeout(100);
+    await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Calibrate Hi-Hat (P-23)
     await page.waitForTimeout(100);
     await hitDrum(MIDI_NOTE.SNARE_RIM, 100); // -> Engine Error Log (T-033)
     await page.waitForTimeout(100);

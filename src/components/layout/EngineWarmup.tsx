@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'preact/hooks'
 import { audioEngine } from '../../audio/AudioEngine'
-import { midiEngine, type HitEvent } from '../../audio/midi'
+import { midiEngine, isWebMidiSupported, type HitEvent } from '../../audio/midi'
 import './EngineWarmup.css'
 
 /**
@@ -41,6 +41,9 @@ export function EngineWarmup({ onReady }: Props) {
   const [phase, setPhase] = useState<Phase>('loading')
   const [showNoKitHint, setShowNoKitHint] = useState(false)
   const doneRef = useRef(false)
+  // A browser fact, fixed for the life of the page, so it is read once rather
+  // than polled. See `isWebMidiSupported` and decision D5.
+  const webMidiSupported = isWebMidiSupported()
 
   // Preload everything that does not need a gesture, so the tap has nothing
   // left to wait for and produces sound immediately.
@@ -76,6 +79,14 @@ export function EngineWarmup({ onReady }: Props) {
    */
   useLayoutEffect(() => {
     if (phase !== 'awaiting-kit') return
+
+    // Nothing will ever arrive, so offer the way forward immediately instead
+    // of making the drummer wait out a six-second hint for a kit this browser
+    // could not hear even if it were plugged in.
+    if (!webMidiSupported) {
+      setShowNoKitHint(true)
+      return
+    }
 
     const unsubscribe = midiEngine.onHit((_hit: HitEvent) => {
       if (doneRef.current) return
@@ -139,7 +150,18 @@ export function EngineWarmup({ onReady }: Props) {
           </p>
         )}
 
-        {phase === 'awaiting-kit' && (
+        {phase === 'awaiting-kit' && !webMidiSupported && (
+          <p class="warmup-line huge warn" data-testid="warmup-unsupported">
+            This browser can't connect to a drum kit
+            <span class="warmup-sub">
+              Web MIDI isn't available here. Use Chrome, Edge or Firefox on a
+              computer, or an Android tablet — every browser on iPhone and iPad
+              has the same limitation.
+            </span>
+          </p>
+        )}
+
+        {phase === 'awaiting-kit' && webMidiSupported && (
           <>
             <p class="warmup-line huge" data-testid="warmup-kit">
               Hit your snare once
@@ -148,19 +170,20 @@ export function EngineWarmup({ onReady }: Props) {
             <div class="warmup-listening" aria-hidden="true">
               <span /><span /><span />
             </div>
-            {showNoKitHint && (
-              <button
-                class="warmup-skip"
-                data-testid="warmup-skip"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onReady()
-                }}
-              >
-                No kit connected — continue anyway
-              </button>
-            )}
           </>
+        )}
+
+        {phase === 'awaiting-kit' && showNoKitHint && (
+          <button
+            class="warmup-skip"
+            data-testid="warmup-skip"
+            onClick={(e) => {
+              e.stopPropagation()
+              onReady()
+            }}
+          >
+            {webMidiSupported ? 'No kit connected — continue anyway' : 'Look around without a kit'}
+          </button>
         )}
 
         {phase === 'kit-found' && (

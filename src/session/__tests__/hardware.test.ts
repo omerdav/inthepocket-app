@@ -13,7 +13,7 @@ describe('hardware capability checks', () => {
       { targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false },
       { targetTimeMs: 500, drumType: 'snare-rim', sticking: 'R', isAccent: false }
     ],
-    passCriteria: { timingWindowMs: 50, timingAccuracyPercent: 80, dynamicContrastDb: 10, consecutiveBarsRequired: 1 },
+    passCriteria: { timingWindowMs: 50, timingAccuracyPercent: 80, consecutiveBarsRequired: 1 },
     failureDiagnostics: []
   };
 
@@ -27,7 +27,7 @@ describe('hardware capability checks', () => {
       { targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false },
       { targetTimeMs: 500, drumType: 'snare-head', sticking: 'R', isAccent: false }
     ],
-    passCriteria: { timingWindowMs: 50, timingAccuracyPercent: 80, dynamicContrastDb: 10, consecutiveBarsRequired: 1 },
+    passCriteria: { timingWindowMs: 50, timingAccuracyPercent: 80, consecutiveBarsRequired: 1 },
     failureDiagnostics: []
   };
 
@@ -47,11 +47,59 @@ describe('hardware capability checks', () => {
 
   it('warns if snare-rim is in the drill but not seen by MidiEngine, even if not explicitly mapped null', () => {
     const mockMidiEngine = {
-      hasSeenNote: (_note: number) => false 
+      hasSeenNote: (_note: number) => false,
+      hasSeenPedal: false
     };
     const result = checkHardwareCapability(dummyDrillWithRim, null, mockMidiEngine);
     expect(result.ok).toBe(true); // Still ok to play, just a warning
     expect(result.missing).toEqual([]);
     expect(result.warnings).toEqual(['snare-rim']);
+  });
+
+  /**
+   * The pedal (P-22). A chick arrives as a controller rather than a note on
+   * most modules, so `hasSeenNote` cannot vouch for it — and a pedal resting
+   * fully open reads 0, so its value cannot either.
+   */
+  const dummyDrillWithChick: ContentUnit = {
+    id: 'drill-chick',
+    name: 'Drill with hi-hat pedal',
+    tier: 'T1',
+    category: 'tech',
+    bpm: 60,
+    sequence: [
+      { targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false },
+      { targetTimeMs: 500, drumType: 'hihat-chick', sticking: '', isAccent: false }
+    ],
+    passCriteria: { timingWindowMs: 50, timingAccuracyPercent: 80, consecutiveBarsRequired: 1 },
+    failureDiagnostics: []
+  };
+
+  it('warns when a drill needs the hi-hat pedal and neither the pedal nor note 44 has been seen', () => {
+    const result = checkHardwareCapability(dummyDrillWithChick, null, {
+      hasSeenNote: (_note: number) => false,
+      hasSeenPedal: false
+    });
+    // Still playable — the drummer may simply not have touched it yet — but
+    // they are told before Start rather than shown nine missing notes after.
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual(['hihat-chick']);
+  });
+
+  it('does not warn once the pedal controller has sent anything', () => {
+    const result = checkHardwareCapability(dummyDrillWithChick, null, {
+      hasSeenNote: (_note: number) => false,
+      hasSeenPedal: true
+    });
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('does not warn for a module that sends a physical note 44 instead of controller data', () => {
+    // Equally playable, so controller silence alone must not raise the warning.
+    const result = checkHardwareCapability(dummyDrillWithChick, null, {
+      hasSeenNote: (note: number) => note === 44,
+      hasSeenPedal: false
+    });
+    expect(result.warnings).toEqual([]);
   });
 });

@@ -59,3 +59,47 @@ test('awaitEntryState reports warmup, not "inside", while the page is still blan
   // the app has not painted, and the honest answer is still "warmup".
   expect(await awaitEntryState(page)).toBe('warmup');
 });
+
+/**
+ * Decision D5 — a browser without Web MIDI must say so.
+ *
+ * Web MIDI does not exist in WebKit, so it is missing in Safari and in every
+ * browser on iOS and iPadOS. Before this the app reached the kit step, listened
+ * to a MIDI stack that could never deliver anything, and after six seconds
+ * offered "No kit connected — continue anyway" — sending someone to check a
+ * cable for a limitation of their browser.
+ *
+ * The capability is removed rather than mocked, which is as close to Safari as
+ * a Chromium run can get: `isWebMidiSupported` asks `navigator` the same
+ * question either browser answers.
+ */
+test('a browser without Web MIDI names the real problem instead of blaming the kit', async ({ page }) => {
+  // Deliberately no virtual drummer: that fixture installs the very API this
+  // test needs absent.
+  await page.addInitScript(() => {
+    // Removed from the prototype, which is where it actually lives. Deleting
+    // `navigator.requestMIDIAccess` removes an own property that was never
+    // there and silently leaves the real one in place — the browser then
+    // reaches the API and fails on *permission* instead, which is a different
+    // condition with a different remedy.
+    delete (Navigator.prototype as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
+  });
+
+  await page.goto('/');
+
+  const warmup = page.getByTestId('engine-warmup');
+  await expect(warmup).toHaveAttribute('data-phase', /awaiting-(tap|kit)/, { timeout: 15000 });
+  if ((await warmup.getAttribute('data-phase')) === 'awaiting-tap') {
+    await warmup.click();
+  }
+  await expect(warmup).toHaveAttribute('data-phase', 'awaiting-kit', { timeout: 10000 });
+
+  // The message names the browser, and never asks for a snare hit that cannot
+  // be heard.
+  await expect(page.getByTestId('warmup-unsupported')).toBeVisible();
+  await expect(page.getByTestId('warmup-kit')).toHaveCount(0);
+
+  // And the way forward is offered at once rather than after the six-second
+  // wait for a kit that could never answer.
+  await expect(page.getByTestId('warmup-skip')).toBeVisible({ timeout: 2000 });
+});

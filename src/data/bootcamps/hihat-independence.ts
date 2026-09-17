@@ -17,7 +17,6 @@ export const HiHatIndependenceDrill1: ContentUnit = {
   sequence: generateHiHatSequence(80, 2), // Quarter note chicks for 2 bars
   passCriteria: {
     ...TOLERANCE_BANDS.Developing,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
   },
   failureDiagnostics: [],
@@ -36,7 +35,6 @@ export const HiHatIndependenceDrill2: ContentUnit = {
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     ...TOLERANCE_BANDS.Consolidating,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.59, // < 0.6
   },
@@ -62,7 +60,6 @@ export const HiHatIndependenceDrill3: ContentUnit = {
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     ...TOLERANCE_BANDS.Consolidating,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.5,
   },
@@ -92,7 +89,6 @@ export const HiHatIndependenceDrill4: ContentUnit = {
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     ...TOLERANCE_BANDS.Mastery,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.45,
   },
@@ -118,7 +114,6 @@ export const HiHatIndependenceDrill5: ContentUnit = {
   ] satisfies DrillNote[]).sort((a, b) => a.targetTimeMs - b.targetTimeMs),
   passCriteria: {
     ...TOLERANCE_BANDS.Mastery,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
     decouplingScoreThreshold: 0.4, // r <= 0.4
   },

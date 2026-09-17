@@ -8,8 +8,10 @@
  * dynamics are wrong when their playing is fine — the same family as C-2 and
  * C-36, where the app blamed the drummer for its own assumption.
  *
- * ON `dynamicContrastDb`. Every drill declares one (10 or 15) and **nothing
- * reads it** — it is dead data, and it always was. It cannot be honoured as
+ * ON `dynamicContrastDb`. Every drill *declared* one (10 or 15) and **nothing
+ * read it** — it was dead data, and it always had been. Removed in P-21; this
+ * paragraph is kept because the reasoning is why it is not coming back. It
+ * could not be honoured as
  * written either: decibels are a property of the sound the module produces,
  * and all the app receives is a 7-bit velocity whose relationship to loudness
  * is set by a user-configurable curve it cannot see. Measuring dB would take a

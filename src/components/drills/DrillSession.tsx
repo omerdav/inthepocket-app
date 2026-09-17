@@ -98,30 +98,43 @@ export function DrillSession({ unit, worker, onComplete }: Props) {
     if (phase !== 'playing' || startPerfMs === null) return
     const unsub = midiEngine.onHit((hit: HitEvent) => {
       if (grooveCircleRef.current) {
-        let deltaMs = hit.deltaMs;
         const correlator = audioEngine.correlator;
-        
-        if (correlator) {
-          const hitAudioMs = correlator.mapHitTime(hit.timestamp) * 1000;
-          const startAudioMs = correlator.mapHitTime(startPerfMs) * 1000;
-          
-          let minAbs = Infinity;
-          let matchedNote = null;
-          for (let i = 0; i < unit.sequence.length; i++) {
-             const targetAudioMs = startAudioMs + unit.sequence[i].targetTimeMs;
-             const diff = hitAudioMs - targetAudioMs;
-             if (Math.abs(diff) < minAbs) {
-               minAbs = Math.abs(diff);
-               deltaMs = diff;
-               matchedNote = unit.sequence[i];
-             }
-          }
-          
-          // R3: "If you cannot attribute a hit to a note confidently, exclude it from the statistics rather than guessing."
-          // We assume it's confident if it's within 150% of the timing window (so it doesn't cross over to the next note usually)
-          if (matchedNote && Math.abs(deltaMs) <= unit.passCriteria.timingWindowMs * 1.5) {
-            balanceTrackerRef.current.registerHit(matchedNote.sticking, hit.velocity);
-          }
+
+        // No correlator, no timing. This used to fall back to `hit.deltaMs`,
+        // which was a field only the SAB path ever wrote and which no caller
+        // ever enabled — so it was permanently 0, and 0 categorises as a
+        // perfect GREEN. Every hit would have glowed green while the app
+        // measured nothing, which is register P-10 exactly. Showing the
+        // drummer nothing is the honest answer; inventing a perfect hit is not.
+        //
+        // Unreachable while a drill is playing — `DrillRunner` throws if the
+        // correlator is missing — so this guards the case where the engine
+        // dies underneath a session rather than a path drummers take.
+        if (!correlator) {
+          console.error('[DrillSession] no audio correlator: live feedback suppressed rather than showing an unmeasured hit as GREEN')
+          return
+        }
+
+        const hitAudioMs = correlator.mapHitTime(hit.timestamp) * 1000;
+        const startAudioMs = correlator.mapHitTime(startPerfMs) * 1000;
+
+        let minAbs = Infinity;
+        let deltaMs = 0;
+        let matchedNote = null;
+        for (let i = 0; i < unit.sequence.length; i++) {
+           const targetAudioMs = startAudioMs + unit.sequence[i].targetTimeMs;
+           const diff = hitAudioMs - targetAudioMs;
+           if (Math.abs(diff) < minAbs) {
+             minAbs = Math.abs(diff);
+             deltaMs = diff;
+             matchedNote = unit.sequence[i];
+           }
+        }
+
+        // R3: "If you cannot attribute a hit to a note confidently, exclude it from the statistics rather than guessing."
+        // We assume it's confident if it's within 150% of the timing window (so it doesn't cross over to the next note usually)
+        if (matchedNote && Math.abs(deltaMs) <= unit.passCriteria.timingWindowMs * 1.5) {
+          balanceTrackerRef.current.registerHit(matchedNote.sticking, hit.velocity);
         }
 
         const category = categoriseTiming(deltaMs, unit.passCriteria.timingWindowMs)

@@ -9,6 +9,7 @@ import {
 import { errorReporter, type ErrorRecord } from '../../ErrorReporter';
 import { isDynamicsCalibratorOpen } from './DynamicsCalibrator';
 import { isKitMapperOpen } from './KitMapper';
+import { isCalibrationOpen } from '../layout/HiHatCalibration';
 import './SettingsMenu.css';
 
 const BLIND_THRESHOLDS = [4, 8, 16];
@@ -31,7 +32,7 @@ export function SettingsMenu() {
         nextIndex = 2;
       }
       
-      if (nextIndex > 5) {
+      if (nextIndex > 6) {
         nextIndex = 0;
       }
       
@@ -55,6 +56,8 @@ export function SettingsMenu() {
       } else if (current === 4) {
         isDynamicsCalibratorOpen.value = true;
       } else if (current === 5) {
+        isCalibrationOpen.value = true;
+      } else if (current === 6) {
         void toggleErrorLog();
       }
     };
@@ -142,7 +145,21 @@ export function SettingsMenu() {
           <span>[ START ]</span>
         </div>
 
+        {/*
+          * Hi-hat calibration was reachable only on first run and immediately
+          * after placement (register P-23), so a drummer who cancelled it, or
+          * whose pedal was identified wrongly, had no way back to it short of
+          * clearing site data. It sits beside the other two calibrations
+          * because it is the same kind of act, and because pedal *detection*
+          * rides on it — this is where a kit whose pedal is not on the
+          * conventional controller gets identified at all (C-55).
+          */}
         <div class={`settings-item ${focusedIndex.value === 5 ? 'focused' : ''}`}>
+          <span>Calibrate Hi-Hat</span>
+          <span>[ START ]</span>
+        </div>
+
+        <div class={`settings-item ${focusedIndex.value === 6 ? 'focused' : ''}`}>
           <span>Engine Error Log</span>
           <span>[ {logExportStatus} ]</span>
         </div>

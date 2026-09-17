@@ -16,7 +16,20 @@ export interface DiagnosticRule {
 export interface PassCriteria {
   timingWindowMs: number;
   timingAccuracyPercent: number;
-  dynamicContrastDb: number;
+  /**
+   * There is deliberately no `dynamicContrastDb` here (register P-21).
+   *
+   * Every drill used to declare one — 10 or 15 — and nothing ever read it, so
+   * a reader of the content files would reasonably conclude drill 3 enforced
+   * 15 dB of contrast. Nothing did. It could not be honoured as written
+   * either: decibels describe the sound the module makes, and all the app
+   * receives is a 7-bit velocity whose relationship to loudness is set by a
+   * user-configurable curve it cannot see. Measuring dB needs a microphone.
+   *
+   * The intent it stood for — accent and ghost must be distinguishable — is
+   * carried by `dynamicsCalibration.ts`, in the unit actually available:
+   * velocity separation measured on this drummer's own kit.
+   */
   consecutiveBarsRequired: number;
   decouplingScoreThreshold?: number; // e.g. 0.4 meaning Pearson r must be <= 0.4
 }

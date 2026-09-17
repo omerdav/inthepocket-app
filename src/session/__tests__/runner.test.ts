@@ -49,7 +49,6 @@ describe('DrillRunner Evaluator Dispatch', () => {
       passCriteria: {
         timingWindowMs: 30,
         timingAccuracyPercent: 90,
-        dynamicContrastDb: 0,
         consecutiveBarsRequired: 1,
         decouplingScoreThreshold: 0.5
       },
@@ -98,7 +97,6 @@ describe('DrillRunner Evaluator Dispatch', () => {
       passCriteria: {
         timingWindowMs: 30,
         timingAccuracyPercent: 90,
-        dynamicContrastDb: 0,
         consecutiveBarsRequired: 1,
         decouplingScoreThreshold: 0.5
       },
@@ -146,7 +144,6 @@ describe('DrillRunner Evaluator Dispatch', () => {
       passCriteria: {
         timingWindowMs: 30,
         timingAccuracyPercent: 90,
-        dynamicContrastDb: 0,
         consecutiveBarsRequired: 1,
       },
       failureDiagnostics: []
@@ -195,7 +192,6 @@ describe('DrillRunner Evaluator Dispatch', () => {
       passCriteria: {
         timingWindowMs: 30,
         timingAccuracyPercent: 90,
-        dynamicContrastDb: 0,
         consecutiveBarsRequired: 1,
       },
       failureDiagnostics: []
@@ -256,7 +252,6 @@ describe('DrillRunner Evaluator Dispatch', () => {
       passCriteria: {
         timingWindowMs: 30,
         timingAccuracyPercent: 90,
-        dynamicContrastDb: 0,
         consecutiveBarsRequired: 1,
       },
       failureDiagnostics: []
@@ -315,7 +310,6 @@ describe('DrillRunner Evaluator Dispatch', () => {
       passCriteria: {
         timingWindowMs: 30,
         timingAccuracyPercent: 90,
-        dynamicContrastDb: 0,
         consecutiveBarsRequired: 1,
       },
       failureDiagnostics: []
@@ -349,7 +343,7 @@ describe('DrillRunner Evaluator Dispatch', () => {
       category: 'Dynamics Gate',
       bpm: 80,
       sequence: [{ targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false }],
-      passCriteria: { timingWindowMs: 30, timingAccuracyPercent: 90, dynamicContrastDb: 0, consecutiveBarsRequired: 1 },
+      passCriteria: { timingWindowMs: 30, timingAccuracyPercent: 90, consecutiveBarsRequired: 1 },
       failureDiagnostics: []
     };
     const workerMock = {} as Worker;
@@ -378,7 +372,7 @@ describe('DrillRunner Evaluator Dispatch', () => {
       category: 'Dynamics Gate',
       bpm: 80,
       sequence: [{ targetTimeMs: 0, drumType: 'kick', sticking: '', isAccent: false }],
-      passCriteria: { timingWindowMs: 30, timingAccuracyPercent: 90, dynamicContrastDb: 0, consecutiveBarsRequired: 1 },
+      passCriteria: { timingWindowMs: 30, timingAccuracyPercent: 90, consecutiveBarsRequired: 1 },
       failureDiagnostics: []
     };
     const workerMock = {} as Worker;

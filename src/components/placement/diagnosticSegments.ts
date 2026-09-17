@@ -15,7 +15,6 @@ export const SegmentTiming: ContentUnit = {
   passCriteria: {
     timingWindowMs: 60,
     timingAccuracyPercent: 80,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 1,
   },
   failureDiagnostics: [],
@@ -36,7 +35,6 @@ export const SegmentDynamics: ContentUnit = {
   passCriteria: {
     timingWindowMs: 80,
     timingAccuracyPercent: 80,
-    dynamicContrastDb: 10,
     consecutiveBarsRequired: 1,
   },
   failureDiagnostics: [],
@@ -57,7 +55,6 @@ export const SegmentIndependence: ContentUnit = {
   passCriteria: {
     timingWindowMs: 80,
     timingAccuracyPercent: 80,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 1,
     decouplingScoreThreshold: 0.5,
   },

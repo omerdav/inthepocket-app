@@ -31,6 +31,20 @@ export function createMetronomeSab(): SharedArrayBuffer {
 /**
  * Signed offset in milliseconds from `hitTimeSec` to the *nearest* beat.
  *
+ * > **No production caller, deliberately (register P-20).** `midi.ts` used to
+ * > call this from its hit dispatch, behind `setSyncData` — which nothing ever
+ * > called, so the path was unreachable for the whole life of the repository.
+ * > That wiring is gone.
+ * >
+ * > This is kept rather than deleted because folding to the nearest *beat* is
+ * > not what grading wants and never was: `DrillSession` measures each hit
+ * > against the drill's own note targets, which is strictly better, since a
+ * > beat fold cannot tell an eighth-note offbeat from a late downbeat. What
+ * > this function is still good for is what `audioworklet.spec.ts` uses it
+ * > for — reading the live SAB the worklet publishes and proving the beat
+ * > reference is sane. Rollup drops it from the bundle while nothing imports
+ * > it, so it costs a reader's attention and nothing else.
+ *
  * Negative = early (ahead of the beat), positive = late (behind it).
  *
  * This folds to the nearest beat rather than differencing against the next one.

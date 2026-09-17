@@ -13,7 +13,6 @@ export const DynamicsGateDrill1: ContentUnit = {
   sequence: generateSequence(80, ['R', 'L'], 2, 'snare-head'),
   passCriteria: {
     ...TOLERANCE_BANDS.Introduction,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
   },
   failureDiagnostics: [],
@@ -30,7 +29,6 @@ export const DynamicsGateDrill2: ContentUnit = {
   sequence: generateSequence(80, ['R', 'L'], 2, 'snare-head'),
   passCriteria: {
     ...TOLERANCE_BANDS.Developing,
-    dynamicContrastDb: 10,
     consecutiveBarsRequired: 2,
   },
   failureDiagnostics: [],
@@ -52,7 +50,6 @@ export const DynamicsGateDrill3: ContentUnit = {
   })),
   passCriteria: {
     ...TOLERANCE_BANDS.Consolidating,
-    dynamicContrastDb: 15,
     consecutiveBarsRequired: 2,
   },
   failureDiagnostics: [],
@@ -68,7 +65,6 @@ export const DynamicsGateDrill4: ContentUnit = {
   sequence: generateSequence(80, ['R'], 2, 'snare-rim'),
   passCriteria: {
     ...TOLERANCE_BANDS.Consolidating,
-    dynamicContrastDb: 0,
     consecutiveBarsRequired: 2,
   },
   failureDiagnostics: [],
@@ -89,7 +85,6 @@ export const DynamicsGateDrill5: ContentUnit = {
   ],
   passCriteria: {
     ...TOLERANCE_BANDS.Mastery, // Tightens to 30ms
-    dynamicContrastDb: 15,
     consecutiveBarsRequired: 1,
   },
   failureDiagnostics: [],

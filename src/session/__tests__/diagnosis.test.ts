@@ -13,7 +13,7 @@ describe('diagnose', () => {
     failureDiagnostics: [],
     bpm: 120,
     sequence: [],
-    passCriteria: { timingWindowMs: 50, timingAccuracyPercent: 80, dynamicContrastDb: 10, consecutiveBarsRequired: 1 }
+    passCriteria: { timingWindowMs: 50, timingAccuracyPercent: 80, consecutiveBarsRequired: 1 }
   };
 
   it('R-T1: diagnoses "inconsistent" for high spread, low bias (sigma 45ms, bias 0)', () => {

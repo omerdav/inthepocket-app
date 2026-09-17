@@ -23,9 +23,7 @@ import { canonicaliseNote } from '../data/utils'
 import { DEFAULT_PEDAL_CC } from './pedalDetection'
 import type { DrumType } from '../data/types'
 import { WebMidi, type Input, type NoteMessageEvent, type ControlChangeMessageEvent } from 'webmidi'
-import type { TimestampCorrelator } from './TimestampCorrelator'
 import { HiHatStateTracker } from './HiHatStateTracker'
-import { nearestBeatDeltaMs } from './metronomeSab'
 
 // ---------------------------------------------------------------------------
 // MIDI Note constants
@@ -60,12 +58,28 @@ export interface HitEvent {
    * menu toggle, etc.). Always `false` for non-rim notes.
    */
   uiNavigationAllowed: boolean
-  /** Exact time offset in ms compared to the metronome target beat. */
-  deltaMs: number
 }
 
 /** Callback type for hit event subscribers. */
 export type HitCallback = (hit: HitEvent) => void
+
+/**
+ * Whether this browser can talk to MIDI devices at all (decision D5).
+ *
+ * Distinct from "no kit is plugged in", and the remedy is completely
+ * different: plugging a kit in will never help here. Web MIDI does not exist
+ * in WebKit, so it is absent in Safari and in *every* browser on iOS and
+ * iPadOS, where they are all WebKit underneath. Without this the app told a
+ * Safari user "No kit connected", sending them to check a cable for a
+ * limitation of their browser.
+ *
+ * Asked of `navigator` directly rather than through the WebMidi library, so
+ * the answer is the browser capability itself and the UI needs no import from
+ * the MIDI stack to render an honest message.
+ */
+export function isWebMidiSupported(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.requestMIDIAccess === 'function'
+}
 
 // ---------------------------------------------------------------------------
 // Configuration constants
@@ -166,6 +180,16 @@ export class MidiEngine {
   // -- Track seen notes for hardware capability check --
   private _seenNotes: Set<number> = new Set<number>()
 
+  /**
+   * Whether this kit's hi-hat pedal controller has sent anything yet.
+   *
+   * Separate from `_seenNotes` because the pedal is a continuous controller,
+   * not a note: a working pedal may never produce a note number at all. Its
+   * *value* cannot stand in for this either — a pedal resting fully open reads
+   * 0, which is indistinguishable from a pedal that is not there.
+   */
+  private _seenPedal = false
+
   // -- UI debounce & Chick deduplication --
   private _lastRimUiTime = -Infinity
   private _lastChickTime = -Infinity
@@ -190,10 +214,6 @@ export class MidiEngine {
 
   // -- Sequence counter --
   private _seq = 0
-
-  // -- Zero-latency Sync --
-  private _sharedBuffer: BigInt64Array | null = null
-  private _correlator: TimestampCorrelator | null = null
 
   /** Whether the engine has been initialized. */
   get initialized(): boolean {
@@ -326,17 +346,14 @@ export class MidiEngine {
     return this._seenNotes.has(note)
   }
 
+  /** Whether this kit's hi-hat pedal controller has sent anything since boot. */
+  get hasSeenPedal(): boolean {
+    return this._seenPedal
+  }
+
   // -----------------------------------------------------------------------
   // Lifecycle
   // -----------------------------------------------------------------------
-
-  /**
-   * Set the SharedArrayBuffer and TimestampCorrelator to calculate zero-latency deltaMs.
-   */
-  setSyncData(sab: SharedArrayBuffer, correlator: TimestampCorrelator): void {
-    this._sharedBuffer = new BigInt64Array(sab)
-    this._correlator = correlator
-  }
 
   /**
    * Request MIDI access and wire up listeners on all available inputs.
@@ -368,7 +385,7 @@ export class MidiEngine {
     // Pre-allocate the hit event object pool (zero `new` in hot path later).
     this._pool = new Array<HitEvent>(HIT_POOL_SIZE)
     for (let i = 0; i < HIT_POOL_SIZE; i++) {
-      this._pool[i] = { note: 0, velocity: 0, timestamp: 0, seq: 0, uiNavigationAllowed: false, deltaMs: 0 }
+      this._pool[i] = { note: 0, velocity: 0, timestamp: 0, seq: 0, uiNavigationAllowed: false }
     }
     this._poolCursor = 0
 
@@ -466,6 +483,7 @@ export class MidiEngine {
     // Which zones we have seen is a property of the connected kit, not of the
     // app session — a rim hit on a previous kit must not vouch for the next one.
     this._seenNotes.clear()
+    this._seenPedal = false
 
     this._initialized = false
   }
@@ -535,6 +553,7 @@ export class MidiEngine {
     if (this._ccListeners.size > 0) this._notifyControlChange(cc, raw)
 
     if (cc === this._pedalCC) {
+      this._seenPedal = true
       this._cc4Value = raw
       this._hiHatTracker.processCC(this._cc4Value, e.timestamp ?? performance.now());
     }
@@ -650,17 +669,6 @@ export class MidiEngine {
     hit.timestamp = timestamp
     hit.seq = this._seq
     hit.uiNavigationAllowed = uiNav
-
-    if (this._sharedBuffer && this._correlator) {
-      // Fold to the NEAREST beat, not the next one. Differencing against the
-      // next beat alone reports a hit landing just after a beat as almost a
-      // full period early — inverting the feedback precisely when the drummer
-      // is closest to correct.
-      const hitAudioTime = this._correlator.mapHitTime(timestamp)
-      hit.deltaMs = nearestBeatDeltaMs(this._sharedBuffer, hitAudioTime)
-    } else {
-      hit.deltaMs = 0
-    }
 
     this._seq = (this._seq + 1) | 0 // wrapping increment, no allocation
 
